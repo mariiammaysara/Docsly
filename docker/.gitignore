@@ -1,0 +1,11 @@
+# Ignore environment files
+.env
+
+# Ignore any local data directories if used instead of volumes
+data/
+db/
+mongo_data/
+
+# Common OS files
+.DS_Store
+Thumbs.db

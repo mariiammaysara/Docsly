@@ -1,0 +1,162 @@
+Mariam Maysara
+AI Engineer
+mariammaysara.ai@gmail.com 
+Cairo, Egypt 
+https://www.linkedin.com/in/mariam-maysara/ 
+https://github.com/mariiammaysara 
+https://www.kaggle.com/mariemmaysara 
+PROFILE
+AI Engineer specializing in machine learning, deep learning, and production AI systems. Expert in Python, 
+FastAPI, LLMs, computer vision, and NLP. Proven track record in building scalable applications with Docker, 
+RESTful APIs, and cloud deployment.
+EDUCATION
+Bachelor of Computer Science (Artificial Intelligence)
+King Salman International University
+•
+Completed core coursework in mathematics for AI including linear algebra, 
+probability, and statistics
+09/2021 – 07/2025
+South Sinai, Egypt
+•
+Studied essential computer science subjects: algorithms, data structures, 
+databases, software engineering
+•
+Relevant Coursework: Machine Learning, Deep Learning, Computer Vision, NLP, 
+Data Structures, Algorithms
+PROJECTS
+Maimo — AI-Powered Study & Productivity Platform
+•
+Architected AI study platform using Next.js 16 and FastAPI with hybrid inference 
+routing between Groq (LLaMA 3) and Gemini 1.5 Pro for academic problem-solving
+12/2025 – Present
+•
+Built semantic note-taking with custom LaTeX rendering, AI auto
+summarization, and vector-based RAG using Supabase pgvector for intelligent 
+search
+•
+Implemented JWT authentication with NextAuth.js and developed analytics 
+dashboard with learning heatmap and gamified XP system
+•
+Containerized application using Docker Compose for efficient deployment
+Veonix — AI-Powered Calorie & Nutrition Analyzer
+Source Code: github.com/mariiammaysara/Veonix
+11/2025 – 12/2025
+•
+Built full-stack nutrition tracking app using Next.js 15 and FastAPI with Google 
+Gemini 2.0 Flash Vision for instant food recognition and macro calculation
+•
+Developed RESTful API with Pydantic validation, custom middleware for request 
+logging and timing, and SQLite database for meal history management
+•
+Created responsive dashboard with Recharts and Radix UI displaying real-time 
+nutritional trends, health scoring, and interactive macro breakdowns
+•
+Containerized with Docker Compose and deployed production environment on 
+Render
+Machine Learning Algorithms from Scratch
+•
+Implemented 8+ machine learning algorithms from scratch using NumPy 
+(Regression, Classification, Clustering) with full mathematical derivations of loss 
+functions, gradients, and optimization methods
+08/2025 – 10/2025
+•
+Created interactive Jupyter notebooks with visualizations illustrating training 
+dynamics and convergence, strengthening expertise in core ML optimization and 
+linear algebra
+Graduation Project — Farmer Eye (Smart Agricultural Robot Car)
+•
+Developed a smart agricultural robot using Arduino, Raspberry Pi, and 
+temperature sensors for real-time data collection.
+10/2024 – 06/2025
+•
+Built a Flutter application to aggregate and visualize sensor data.
+•
+Implemented a CNN-based image analysis model, achieving ~94% accuracy.
+•
+Integrated hardware, AI, and software components into an end-to-end intelligent 
+system.
+PROFESSIONAL EXPERIENCE
+AI Engineer Intern — Beetleware
+•
+Selected as 1 of 10 participants from 600+ applicants for intensive AI and Software 
+Engineering program
+08/2025 – 11/2025
+Fully remote
+•
+Engineered distributed AI models using Ray framework with Ray Train and Ray 
+Tune for scalable training and hyperparameter optimization across 50+ 
+experiments
+•
+Developed production-ready SaaS features including RESTful API design, 
+microservices architecture, and secure authentication systems
+•
+Collaborated in Agile teams applying CI/ CD pipelines, Git workflows, and code 
+reviews reducing deployment
+AI Intern — AOI Training Academy
+•
+Completed hands-on training in AI fundamentals using Python including 
+supervised learning, model evaluation, and optimization techniques
+08/2024 – 08/2024
+On-site — Cairo,
+Egypt
+•
+Developed classification and regression models on real-world datasets achieving 
+85%+ accuracy through guided exercises and mini projects
+AI & Machine Learning Intern — Zewail City of Science and Technology
+•
+Applied supervised learning concepts (classification, regression) and neural 
+networks through practical exercises using Python and Scikit-learn
+08/2023 – 10/2023
+Hybrid — Giza, Egypt
+•
+Implemented ML models with introduction to reinforcement learning, 
+strengthening analytical and problem-solving skills through hands-on projects
+SKILLS
+Programming Languages
+ Python, SQL, JavaScript, TypeScript, C++
+Machine Learning
+•
+Supervised Learning, Deep Learning, Neural 
+Networks, Computer Vision, NLP, Model Training, 
+Model Optimization, Hyperparameter Tuning, 
+Feature Engineering, Model Evaluation, 
+Distributed Training, Ray Framework
+Large Language Models (LLMs)
+•
+OpenAI API, Google Gemini API, Gemini Vision, 
+Groq API, Hugging Face, LangChain, LangGraph, 
+AutoGen, RAG (Retrieval-Augmented Generation), 
+Prompt Engineering, Fine-tuning (LoRA, PEFT), 
+LLaMA
+Backend Development
+•
+FastAPI, Flask, REST API, RESTful API Design, 
+Microservices Architecture, API Integration, 
+SQLAlchemy, Pydantic, JWT Authentication, 
+NextAuth.js, Middleware, Request Validation
+Databases
+PostgreSQL, SQLite, Supabase, pgvector, Vector 
+Databases, SQL, ORM
+AI/ML Frameworks & Libraries
+•
+TensorFlow, PyTorch, Scikit-learn, NumPy, 
+Pandas, Keras, OpenCV
+Data Visualization
+Recharts, Matplotlib, Interactive Charts, 
+Dashboards
+NLP & Computer Vision
+•
+Text Preprocessing, TF-IDF, Sentiment Analysis, 
+Text Classification, Transformers, Image 
+Classification, Object Detection, CNN, Food 
+Recognition
+Frontend Development
+Next.js, React, Tailwind CSS, Framer Motion, Server 
+Actions, Tiptap, Radix UI, Recharts, shadcn/ ui
+DevOps & Deployment
+Docker, Docker Compose, CI/ CD Pipelines, GitHub 
+Actions, Git, Version Control, Cloud Deployment, 
+Containerization, Render, Vercel, Oracle Cloud, 
+Supabase, Cloud Computing
+LANGUAGES
+Arabic English

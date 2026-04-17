@@ -1,0 +1,23 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: rag_mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodata:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    networks:
+      - backend
+
+volumes:
+  mongodata:
+
+
+networks:
+  backend:
+    driver: bridge
