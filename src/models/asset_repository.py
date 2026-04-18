@@ -7,16 +7,17 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-class AssetRepository(BaseDataModel):
+class AssetModel(BaseDataModel):
     """
     Repository class for the 'assets' collection.
     Handles data access logic for Asset entities.
     """
     def __init__(self, db_client: AsyncIOMotorDatabase):
         super().__init__(db_client=db_client)
+        self.collection: AsyncIOMotorCollection = self.db_client[DataBaseEnum.COLLECTION_ASSET_NAME.value]
 
     @classmethod
-    async def create(cls, db_client):
+    async def create_instance(cls, db_client):
         """Async factory method to create and initialize the repository."""
         instance = cls(db_client)
         await instance.init_collection()
@@ -25,8 +26,7 @@ class AssetRepository(BaseDataModel):
         """Robust initialization of the assets collection and its indexes."""
         all_collections = await self.db_client.list_collection_names()
         if DataBaseEnum.COLLECTION_ASSET_NAME.value not in all_collections:
-            self.collection = self.db_client[DataBaseEnum.COLLECTION_ASSET_NAME.value]
-            indexes = Asset.get_indexes()
+            indexes = Asset.get_indexes() # Corrected typo: using Asset instead of Project
             for index in indexes:
                 await self.collection.create_index(
                     index["key"],
@@ -55,16 +55,34 @@ class AssetRepository(BaseDataModel):
             logger.error(f"Error in find_one for query {query}: {e}")
             return None
 
-    async def find_all(self, query: Optional[dict] = None) -> List[Asset]:
-        """Retrieves all assets matching the query and converts them to Models."""
+    async def get_all_project_assets(self, asset_project_id: str, asset_type: str):
+        """Retrieves all assets for a specific project and type."""
         try:
-            query = query or {}
+            query = {
+                "asset_project_id": asset_project_id,
+                "asset_type": asset_type
+            }
             cursor = self.collection.find(query)
             data_list = await cursor.to_list(length=None)
             return [Asset(**data) for data in data_list]
         except Exception as e:
-            logger.error(f"Error in find_all for query {query}: {e}")
+            logger.error(f"Error in get_all_project_assets: {e}")
             return []
+
+    async def get_asset_record(self, asset_project_id: str, asset_name: str):
+        """Retrieves a specific asset by project and name."""
+        try:
+            query = {
+                "asset_project_id": asset_project_id,
+                "asset_name": asset_name
+            }
+            asset_data = await self.collection.find_one(query)
+            if asset_data:
+                return Asset(**asset_data)
+            return None
+        except Exception as e:
+            logger.error(f"Error in get_asset_record: {e}")
+            return None
 
     async def delete_asset(self, asset_id: str) -> bool:
         """Deletes an asset by its ID."""

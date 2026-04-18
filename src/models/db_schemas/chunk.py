@@ -13,7 +13,7 @@ class Chunk(BaseModel):
     chunk_uuid: str = Field(default_factory=lambda: str(uuid.uuid4()), unique=True)
     
     chunk_project_id: PyObjectId = Field(..., description="Reference to the owning project")
-    asset_id: Optional[str] = Field(None, description="Reference to the specific asset/file record")
+    chunk_asset_id: Optional[str] = Field(None, description="Reference to the specific asset/file record")
     
     file_id: str = Field(..., description="Original filename or unique file ID")
     chunk_order: int = Field(..., gt=0, description="Position of the chunk within the original file")
@@ -22,8 +22,8 @@ class Chunk(BaseModel):
     chunk_metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadata from the loader")
     
     # Audit timestamps
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    chunk_created_at: datetime = Field(default_factory=datetime.utcnow)
+    chunk_updated_at: datetime = Field(default_factory=datetime.utcnow)
     
     # Placeholder for future vector enrichment
     vector_id: Optional[str] = Field(None, description="External ID for vector database reference")
@@ -43,8 +43,8 @@ class Chunk(BaseModel):
                 "unique": True
             },
             {
-                "key": [("asset_id", 1)],
-                "name": "asset_id_index_1",
+                "key": [("chunk_asset_id", 1)],
+                "name": "chunk_asset_id_index_1",
                 "unique": False
             }
         ]
@@ -54,11 +54,11 @@ class Chunk(BaseModel):
         arbitrary_types_allowed=True,
         json_schema_extra={
             "example": {
-                "project_id": "docsly_v1",
+                "chunk_project_id": "docsly_v1",
                 "file_id": "sample.pdf",
-                "chunk_index": 0,
-                "page_content": "This is a sample chunk content.",
-                "metadata": {"source": "sample.pdf", "page": 1}
+                "chunk_order": 0,
+                "chunk_text": "This is a sample chunk content.",
+                "chunk_metadata": {"source": "sample.pdf", "page": 1}
             }
         }
     )

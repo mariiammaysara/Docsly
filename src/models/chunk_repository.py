@@ -14,6 +14,7 @@ class ChunkRepository(BaseDataModel):
     """
     def __init__(self, db_client: AsyncIOMotorDatabase):
         super().__init__(db_client=db_client)
+        self.collection: AsyncIOMotorCollection = self.db_client[DataBaseEnum.COLLECTION_CHUNK_NAME.value]
 
     @classmethod
     async def create(cls, db_client):
@@ -25,7 +26,6 @@ class ChunkRepository(BaseDataModel):
         """Robust initialization of the chunks collection and its indexes."""
         all_collections = await self.db_client.list_collection_names()
         if DataBaseEnum.COLLECTION_CHUNK_NAME.value not in all_collections:
-            self.collection = self.db_client[DataBaseEnum.COLLECTION_CHUNK_NAME.value]
             indexes = Chunk.get_indexes()
             for index in indexes:
                 await self.collection.create_index(

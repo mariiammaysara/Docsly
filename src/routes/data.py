@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, Depends, UploadFile, status, HTTPException
+from fastapi import FastAPI, APIRouter, Depends, UploadFile, status, HTTPException, Request
 from fastapi.responses import JSONResponse
 import os
 import aiofiles
@@ -6,6 +6,8 @@ import logging
 from helpers.config import get_settings, Settings
 from controllers import data_controller, project_controller, ProcessController
 from models.response_models import MessageResponse, FileUploadResponse
+from models import ProjectRepository, AssetModel
+from models.db_schemas import Asset
 from models.enums import ResponseSignal
 from routes.schemas import ProcessRequest
 import shutil
@@ -23,9 +25,13 @@ async def data_info(settings: Settings = Depends(get_settings)):
     return await data_controller.get_data_info(settings)
 
 @data_router.post("/upload/{project_id}")
-async def upload_data(project_id: str, file: UploadFile,
+async def upload_data(request: Request, project_id: str, file: UploadFile,
                       app_settings: Settings = Depends(get_settings)):
     """Upload data file with manual validation and chunked storage."""
+    
+    # Get project repository and ensure project exists in DB
+    project_repo = await ProjectRepository.create(request.app.db)
+    project = await project_repo.get_project_or_create_one(project_id)
     
     # validate the file properties using shared instance
     is_valid, result_signal = data_controller.validate_uploaded_file(file=file)
@@ -62,17 +68,44 @@ async def upload_data(project_id: str, file: UploadFile,
             }
         )
         
-    return JSONResponse(
-        status_code=status.HTTP_200_OK,
-        content={
-            "signal": ResponseSignal.FILE_VALIDATED_SUCCESS.value,
-            "message": "File uploaded successfully in chunks",
-            "file_id": file_id,
-            "file_path": str(file_path),
-            "original_name": file.filename,
-            "file_size": os.path.getsize(file_path)
-        }
-    )
+    # --- Integration: Save to Assets Collection ---
+    try:
+        asset_model = await AssetModel.create_instance(request.app.db)
+        asset_size = os.path.getsize(file_path)
+        
+        new_asset = Asset(
+            asset_project_id=project.id,
+            asset_name=file.filename,
+            asset_type=file.content_type,
+            asset_size=asset_size,
+            asset_path=str(file_path),
+            asset_config={}
+        )
+        
+        created_asset = await asset_model.create_asset(new_asset)
+        
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                "signal": ResponseSignal.FILE_UPLOAD_SUCCESS.value,
+                "message": "File uploaded and registered successfully",
+                "asset_id": str(created_asset.id),
+                "asset_uuid": created_asset.asset_uuid,
+                "project_id": project_id,
+                "file_path": str(file_path),
+                "original_name": file.filename,
+                "file_size": asset_size
+            }
+        )
+    except Exception as e:
+        logger.error(f"Failed to register asset in database: {e}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "signal": ResponseSignal.DATABASE_ERROR.value,
+                "message": "File uploaded but database registration failed"
+            }
+        )
 
 @data_router.post("/process/{project_id}")
 async def process_data(project_id: str, request: ProcessRequest):

@@ -40,11 +40,11 @@ async def lifespan(app: FastAPI):
         logger.info("MongoDB connection established successfully.")
 
         # Enforce Indices and Initialize Collections via Async Factory Method
-        from models import ProjectRepository, ChunkRepository, AssetRepository
+        from models import ProjectRepository, ChunkRepository, AssetModel
         
         await ProjectRepository.create(app.db)
         await ChunkRepository.create(app.db)
-        await AssetRepository.create(app.db)
+        await AssetModel.create_instance(app.db)
         
         logger.info("Database collections and indices initialized (Factory Pattern).")
 

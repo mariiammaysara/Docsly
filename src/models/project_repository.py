@@ -1,6 +1,6 @@
 from .base_data_model import BaseDataModel
 from .db_schemas import Project
-from .enums import DataBaseEnum
+from .enums import DataBaseEnum, ProcessingStatusEnum
 from typing import List, Optional
 from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorCollection
 import logging
@@ -56,7 +56,7 @@ class ProjectRepository(BaseDataModel):
             # Atomic upsert to prevent data duplication under concurrency
             project_data = await self.collection.find_one_and_update(
                 {"project_id": project_id},
-                {"$setOnInsert": Project(project_id=project_id).model_dump(by_alias=True, exclude_none=True)},
+                {"$setOnInsert": Project(project_id=project_id, processing_status=ProcessingStatusEnum.PENDING).model_dump(by_alias=True, exclude_none=True)},
                 upsert=True,
                 return_document=True
             )
