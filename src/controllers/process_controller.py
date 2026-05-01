@@ -51,9 +51,11 @@ class ProcessController(BaseController):
             return None
 
         if file_ext == ProcessingEnum.TXT.value:
+            logger.info(f"Initialized TextLoader for: {file_path}")
             return TextLoader(file_path, encoding="utf-8")
 
         if file_ext == ProcessingEnum.PDF.value:
+            logger.info(f"Initialized PyMuPDFLoader for: {file_path}")
             return PyMuPDFLoader(file_path)
         
         logger.warning(f"Processing aborted: Extension '{file_ext}' is not supported yet.")

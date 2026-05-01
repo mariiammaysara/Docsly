@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "Docsly"
     APP_VRESION: str = "0.1" # Using current key name from .env
     OPENAI_API_KEY: str = "Add ur key"
+    LOG_LEVEL: str = "INFO"
     
     # File upload settings
     FILE_ALLOWED_TYPES: List[FileType] = [

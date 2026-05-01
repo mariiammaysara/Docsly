@@ -13,7 +13,7 @@ class Chunk(BaseModel):
     chunk_uuid: str = Field(default_factory=lambda: str(uuid.uuid4()), unique=True)
     
     chunk_project_id: PyObjectId = Field(..., description="Reference to the owning project")
-    chunk_asset_id: Optional[str] = Field(None, description="Reference to the specific asset/file record")
+    chunk_asset_id: Optional[PyObjectId] = Field(None, description="Reference to the specific asset/file record")
     
     file_id: str = Field(..., description="Original filename or unique file ID")
     chunk_order: int = Field(..., gt=0, description="Position of the chunk within the original file")

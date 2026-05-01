@@ -1,8 +1,9 @@
+from typing import List, Optional, Any
 from .base_data_model import BaseDataModel
 from .db_schemas import Chunk
 from .enums import DataBaseEnum
-from typing import List, Optional
 from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorCollection
+from bson import ObjectId
 import logging
 
 logger = logging.getLogger(__name__)
@@ -89,14 +90,16 @@ class ChunkRepository(BaseDataModel):
             logger.error(f"Error in find_paginated for query {query}: {e}")
             return []
 
-    async def get_project_chunks(self, project_id: str) -> List[Chunk]:
+    async def get_project_chunks(self, project_id: Any) -> List[Chunk]:
         """Retrieves all chunks for a specific project using the generic find_all."""
-        return await self.find_all({"chunk_project_id": project_id})
+        query_id = project_id if isinstance(project_id, ObjectId) else ObjectId(project_id)
+        return await self.find_all({"chunk_project_id": query_id})
 
-    async def delete_project_chunks(self, project_id: str) -> int:
+    async def delete_project_chunks(self, project_id: Any) -> int:
         """Deletes all chunks associated with a project. Returns the count."""
         try:
-            result = await self.collection.delete_many({"chunk_project_id": project_id})
+            query_id = project_id if isinstance(project_id, ObjectId) else ObjectId(project_id)
+            result = await self.collection.delete_many({"chunk_project_id": query_id})
             return result.deleted_count
         except Exception as e:
             logger.error(f"Failed to delete chunks for project {project_id}: {e}")

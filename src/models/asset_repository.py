@@ -1,8 +1,9 @@
+from typing import List, Optional, Any
 from .base_data_model import BaseDataModel
 from .db_schemas.asset import Asset
 from .enums import DataBaseEnum
-from typing import List, Optional
 from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorCollection
+from bson import ObjectId
 import logging
 
 logger = logging.getLogger(__name__)
@@ -55,11 +56,11 @@ class AssetModel(BaseDataModel):
             logger.error(f"Error in find_one for query {query}: {e}")
             return None
 
-    async def get_all_project_assets(self, asset_project_id: str, asset_type: str):
+    async def get_all_project_assets(self, asset_project_id: Any, asset_type: str):
         """Retrieves all assets for a specific project and type."""
         try:
             query = {
-                "asset_project_id": asset_project_id,
+                "asset_project_id": asset_project_id if isinstance(asset_project_id, ObjectId) else ObjectId(asset_project_id),
                 "asset_type": asset_type
             }
             cursor = self.collection.find(query)
@@ -69,11 +70,22 @@ class AssetModel(BaseDataModel):
             logger.error(f"Error in get_all_project_assets: {e}")
             return []
 
-    async def get_asset_record(self, asset_project_id: str, asset_name: str):
+    async def get_project_assets(self, asset_project_id: Any):
+        """Retrieves all assets (any type) associated with a specific project."""
+        try:
+            query = {"asset_project_id": asset_project_id if isinstance(asset_project_id, ObjectId) else ObjectId(asset_project_id)}
+            cursor = self.collection.find(query)
+            data_list = await cursor.to_list(length=None)
+            return [Asset(**data) for data in data_list]
+        except Exception as e:
+            logger.error(f"Error in get_project_assets for {asset_project_id}: {e}")
+            return []
+
+    async def get_asset_record(self, asset_project_id: Any, asset_name: str):
         """Retrieves a specific asset by project and name."""
         try:
             query = {
-                "asset_project_id": asset_project_id,
+                "asset_project_id": asset_project_id if isinstance(asset_project_id, ObjectId) else ObjectId(asset_project_id),
                 "asset_name": asset_name
             }
             asset_data = await self.collection.find_one(query)
@@ -84,10 +96,11 @@ class AssetModel(BaseDataModel):
             logger.error(f"Error in get_asset_record: {e}")
             return None
 
-    async def delete_asset(self, asset_id: str) -> bool:
+    async def delete_asset(self, asset_id: Any) -> bool:
         """Deletes an asset by its ID."""
         try:
-            result = await self.collection.delete_one({"_id": asset_id})
+            query_id = asset_id if isinstance(asset_id, ObjectId) else ObjectId(asset_id)
+            result = await self.collection.delete_one({"_id": query_id})
             return result.deleted_count > 0
         except Exception as e:
             logger.error(f"Failed to delete asset {asset_id}: {e}")

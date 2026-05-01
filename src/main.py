@@ -16,13 +16,25 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from contextlib import asynccontextmanager
 import logging
 
+# ---------------------------------------------------------------------------
+# Logging Configuration
+# Set up a professional format for all project loggers early in the lifecycle
+# ---------------------------------------------------------------------------
+settings = get_settings()
+
+logging.basicConfig(
+    level=settings.LOG_LEVEL,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # App Setup
 # Get config for app metadata
 # ---------------------------------------------------------------------------
-settings = get_settings()
+# settings = get_settings() # Moved up to support logging config early
 
 # ---------------------------------------------------------------------------
 # App Setup with MongoDB Lifecycle

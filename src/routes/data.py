@@ -6,7 +6,7 @@ import logging
 from helpers.config import get_settings, Settings
 from controllers import data_controller, project_controller, ProcessController
 from models.response_models import MessageResponse, FileUploadResponse
-from models import ProjectRepository, AssetModel
+from models import ProjectRepository, AssetModel, ChunkRepository
 from models.db_schemas import Asset
 from models.enums import ResponseSignal
 from routes.schemas import ProcessRequest
@@ -73,6 +73,8 @@ async def upload_data(request: Request, project_id: str, file: UploadFile,
         asset_model = await AssetModel.create_instance(request.app.db)
         asset_size = os.path.getsize(file_path)
         
+        logger.info(f"Accepted upload request: {file.filename} ({asset_size} bytes) for Project: {project_id}")
+        
         new_asset = Asset(
             asset_project_id=project.id,
             asset_name=file.filename,
@@ -83,6 +85,7 @@ async def upload_data(request: Request, project_id: str, file: UploadFile,
         )
         
         created_asset = await asset_model.create_asset(new_asset)
+        logger.info(f"Asset registered in DB: {created_asset.asset_uuid} | Project: {project_id}")
         
         return JSONResponse(
             status_code=status.HTTP_200_OK,
@@ -108,38 +111,75 @@ async def upload_data(request: Request, project_id: str, file: UploadFile,
         )
 
 @data_router.post("/process/{project_id}")
-async def process_data(project_id: str, request: ProcessRequest):
-    """Process uploaded data using file_id."""
+async def process_data(request: Request, project_id: str, request_data: ProcessRequest):
+    """Process uploaded data using file_id or all project assets."""
+    
+    # 0. Handle Reset Logic (Project-wide)
+    if request_data.do_reset == 1:
+        chunk_repo = await ChunkRepository.create(request.app.db)
+        deleted_count = await chunk_repo.delete_project_chunks(project_id)
+        logger.info(f"Reset triggered for project {project_id}: Deleted {deleted_count} old chunks.")
     
     # Instantiate the process controller for the specific project
     process_controller = ProcessController(project_id)
+    all_chunks = []
+    processed_files = []
     
-    # Process the file
-    is_success, process_message, chunks = process_controller.process_file(
-        file_id=request.file_id,
-        chunk_size=request.chunk_size,
-        overlap_size=request.overlap_size,
-        do_reset=request.do_reset
-    )
-    
-    if not is_success:
+    # 1. Determine which files to process
+    if request_data.file_id:
+        # Process specific file
+        files_to_process = [request_data.file_id]
+    else:
+        # Batch process: Get all assets for this project from DB
+        asset_model = await AssetModel.create_instance(request.app.db)
+        project_assets = await asset_model.get_project_assets(project_id)
+        files_to_process = [asset.asset_name for asset in project_assets]
+        
+    if not files_to_process:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={
-                "signal": ResponseSignal.PROCESSING_FAILED.value,
-                "message": process_message
+                "signal": ResponseSignal.PROJECT_EMPTY.value,
+                "message": "No files found to process for this project. Please upload files first."
+            }
+        )
+        
+    # 2. Process each file in the list
+    logger.info(f"Starting batch processing loop for {len(files_to_process)} assets...")
+    for file_id in files_to_process:
+        is_success, process_message, chunks = process_controller.process_file(
+            file_id=file_id,
+            chunk_size=request_data.chunk_size,
+            overlap_size=request_data.overlap_size,
+            do_reset=request_data.do_reset
+        )
+        
+        if is_success:
+            all_chunks.extend(chunks)
+            processed_files.append(file_id)
+        else:
+            logger.warning(f"Skipping file {file_id}: {process_message}")
+
+    if not all_chunks:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "signal": ResponseSignal.PROCESSING_EMPTY_RESULT.value,
+                "message": "Failed to extract any chunks from the found files."
             }
         )
     
-    # Format chunks as requested (page_content, metadata, type: "Document")
+    # 3. Format chunks as requested (page_content, metadata, type: "Document")
     formatted_chunks = [
         {
             "page_content": chunk.page_content,
             "metadata": chunk.metadata,
             "type": "Document"
         }
-        for chunk in chunks
+        for chunk in all_chunks
     ]
+    
+    logger.info(f"Batch processing complete: {len(processed_files)} files converted into {len(all_chunks)} total chunks.")
     
     return JSONResponse(
         status_code=status.HTTP_200_OK,

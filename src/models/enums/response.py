@@ -27,3 +27,5 @@ class ResponseSignal(Enum):
     UNAUTHORIZED_ACCESS = "unauthorized_access"
     FILE_NOT_FOUND = "file_not_found"
     UNSUPPORTED_EXTENSION = "unsupported_extension"
+    PROJECT_EMPTY = "project_is_empty_no_assets_found"
+    PROCESSING_EMPTY_RESULT = "processing_resulted_in_no_chunks"

@@ -1,10 +1,25 @@
-from typing import Annotated
-from pydantic import BeforeValidator
+from typing import Annotated, Any
+from pydantic import BeforeValidator, PlainSerializer
+from bson import ObjectId
 from helpers.config import get_settings
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-# Custom type for handling MongoDB ObjectIDs in Pydantic v2
-PyObjectId = Annotated[str, BeforeValidator(str)]
+# ---------------------------------------------------------------------------
+# PyObjectId Type Definition (Pydantic v2)
+# Handles validation of strings/ObjectIds and serialization to string.
+# ---------------------------------------------------------------------------
+def validate_object_id(v: Any) -> ObjectId:
+    if isinstance(v, ObjectId):
+        return v
+    if ObjectId.is_valid(v):
+        return ObjectId(v)
+    raise ValueError(f"Invalid ObjectId: {v}")
+
+PyObjectId = Annotated[
+    ObjectId,
+    BeforeValidator(validate_object_id),
+    PlainSerializer(lambda v: str(v), return_type=str)
+]
 
 class BaseDataModel:
     """
