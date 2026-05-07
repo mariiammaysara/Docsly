@@ -60,6 +60,20 @@ async def lifespan(app: FastAPI):
         
         logger.info("Database collections and indices initialized (Factory Pattern).")
 
+        # ---------------------------------------------------------------------------
+        # LLM Clients Initialization
+        # ---------------------------------------------------------------------------
+        from stores.llm import LLMProviderFactory
+        llm_factory = LLMProviderFactory(settings)
+
+        # Initialize Generation Client
+        app.generation_client = llm_factory.create(settings.GENERATION_BACKEND)
+        
+        # Initialize Embedding Client
+        app.embedding_client = llm_factory.create(settings.EMBEDDING_BACKEND)
+
+        logger.info(f"LLM Clients initialized (Generation: {settings.GENERATION_BACKEND}, Embedding: {settings.EMBEDDING_BACKEND})")
+
     except Exception as e:
         logger.error(f"Failed to connect to MongoDB: {e}")
         raise e
@@ -73,7 +87,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     description="RAG Application API",
-    version=settings.APP_VRESION,
+    version=settings.APP_VERSION,
     lifespan=lifespan
 )
 

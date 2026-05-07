@@ -86,7 +86,7 @@ class DataController(BaseController):
         """Logic for data info page."""
         return MessageResponse(
             message=f"Data services for {settings.APP_NAME} are ready.",
-            version=settings.APP_VRESION
+            version=settings.APP_VERSION
         )
 
     async def upload_file(self, project_id: str, file: UploadFile, settings: Settings) -> FileUploadResponse:

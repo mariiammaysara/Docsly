@@ -17,7 +17,7 @@ class BaseController:
         """Logic for the welcome page."""
         return MessageResponse(
             message=f"Welcome to {settings.APP_NAME} API!",
-            version=settings.APP_VRESION
+            version=settings.APP_VERSION
         )
     
     @staticmethod

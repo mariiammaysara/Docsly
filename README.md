@@ -1,40 +1,66 @@
-# Docsly - Production-Ready RAG Application
+# Docsly - Simple AI Document Reader (RAG)
 
-**Docsly** is an open-source, full-stack **RAG (Retrieval-Augmented Generation)** application designed for production environments. It provides a robust infrastructure for ingesting, processing, and querying large document collections using state-of-the-art AI.
-
----
-
-## Roadmap: What's Next?
-1. **Vectorization**: Transform processed chunks into high-dimensional **Embeddings**.
-2. **Vector DB Integration**: Storing and indexing embeddings for semantic search.
-3. **Retrieval Logic**: Implementing similarity search to find the most relevant document pieces.
-4. **LLM Synthesis**: Connecting to models (like OpenAI or Local LLMs) to generate precise answers based on retrieved context.
+**Docsly** is an open-source project. It is a **RAG (Retrieval-Augmented Generation)** application. 
+This means it helps you upload large documents (like PDFs), reads them, and lets you ask questions about them using AI (like ChatGPT or local models).
 
 ---
 
-## Local Setup
+## What Does It Do? (Roadmap)
+1. **File Upload**: Upload your files and save them in projects.
+2. **Chunking**: Cut large documents into smaller pieces so the AI can understand them.
+3. **Embeddings (Coming Soon)**: Change the text pieces into numbers (Vectors) so we can search through them quickly.
+4. **AI Answers (New! LLM Factory)**: Connect to different AI models (like OpenAI or Ollama) to answer your questions using the document pieces.
 
-### 1. Manual Installation
+---
+
+## Recent Architectural Improvements
+
+We've evolved the project to a production-grade architecture using the **Factory Pattern** and modern FastAPI practices:
+
+### 1. Advanced LLM Factory
+- **Supported Providers**: Fully integrated with **OpenAI**, **Cohere**, **Google Gemini**, and **Ollama** (Local).
+- **Dynamic Model Selection**: The factory now automatically injects `GENERATION_MODEL_ID` and `EMBEDDING_MODEL_ID` from your `.env` settings into the created providers.
+- **Unified Interface**: A strict `BaseLLM` blueprint ensures every AI model works consistently, returning a standardized `LLMResponse`.
+
+### 2. Vector DB Factory (In Progress)
+- **Modular Foundation**: We've added the `src/stores/vectordb/` package with a `BaseVectorDB` interface and a `VectorDBProviderFactory`.
+- **Qdrant Ready**: Initial support for **Qdrant** is being implemented, allowing for easy switching between different vector databases in the future.
+
+### 3. Modern Lifecycle & Configuration
+- **Lifespan Context Manager**: Uses the latest FastAPI `lifespan` pattern for efficient startup (initializing DB connections and LLM clients) and graceful shutdown.
+- **Full Config Sync**: The `src/helpers/config.py` is now 100% synchronized with `.env`, supporting all metadata, database, and AI settings.
+- **Observability**: Added project-wide `logging` with a configurable `LOG_LEVEL` (INFO, DEBUG, ERROR) controlled directly from the `.env` file.
+
+---
+
+## How to Run the Project Locally
+
+### 1. Install Requirements
+First, create a virtual environment and install the required tools:
 ```bash
-# Create virtual environment
+# Create virtual environment (for Windows)
 py -3.12 -m venv .venv
 .venv\Scripts\activate
 
 # Install dependencies
 pip install -r src/requirements.txt
+```
 
-# Run the server
+### 2. Start the Server
+Run this command to start the FastAPI server:
+```bash
 $env:PYTHONPATH="src"; uvicorn main:app --reload --host 0.0.0.0 --app-dir src
 ```
 
-### 2. Environment Configuration
-- **Application (src/.env)**: Copy src/.env.example -> src/.env
-- **Infrastructure (docker/.env)**: Copy docker/.env.example -> docker/.env
+### 3. Environment Files
+You need to copy the example files and add your own secret keys:
+- **App Settings**: Copy `src/.env.example` to `src/.env`
+- **Docker Settings**: Copy `docker/.env.example` to `docker/.env`
 
 ---
 
-## Docker Usage (Infrastructure)
-Run the required MongoDB instance using **Docker Compose**:
+## Database (Docker)
+We use MongoDB to save your data. You can run it easily using Docker:
 ```bash
 cd docker
 docker-compose up -d
@@ -42,27 +68,15 @@ docker-compose up -d
 
 ---
 
-## API Endpoints
+## API Endpoints (How to talk to the app)
 
-| Method | Endpoint | Description |
+| Action | URL | What it does |
 |--------|----------|-------------|
-| GET  | / | Welcome message |
-| GET  | /api/v1/health | System health check |
-| GET  | /api/v1/data/info | Data configuration info |
-| POST | /api/v1/data/upload/{project_id} | **Upload file** and register Asset |
-| POST | /api/v1/data/process/{project_id} | **Process Asset** into Chunks |
+| GET  | `/` | Shows a Welcome message |
+| GET  | `/api/v1/health` | Checks if the system is working |
+| POST | `/api/v1/data/upload/{project_id}` | Uploads a file to a project |
+| POST | `/api/v1/data/process/{project_id}` | Cuts the uploaded files into small pieces |
 
 ---
 
-## Environment Variables
-
-### Application Settings (src/.env)
-| Variable | Description |
-|----------|-------------|
-| APP_NAME | **Docsly** |
-| APP_VERSION | **v0.1.0** |
-| MONGODB_URL | Your MongoDB URI |
-| OPEN_AI_KEY | Your OpenAI API Key |
-
----
-*Developed as part of the **mini-RAG** series.*
+*This project is built following the **mini-RAG** series to learn how to build real, professional AI backend systems.*
