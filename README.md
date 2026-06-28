@@ -3,6 +3,10 @@
 **Docsly** is an open-source project. It is a **RAG (Retrieval-Augmented Generation)** application. 
 This means it helps you upload large documents (like PDFs), reads them, and lets you ask questions about them using AI (like ChatGPT or local models).
 
+## System Architecture
+
+![Docsly Architecture](src/assets/docsly_architecture.png)
+
 ---
 
 ## What Does It Do? (Roadmap)

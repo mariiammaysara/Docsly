@@ -1,9 +1,9 @@
 from fastapi import UploadFile, HTTPException, Depends
-from helpers.config import Settings, get_settings
-from models.response_models import MessageResponse, FileUploadResponse
-from models.enums import ResponseSignal
-from controllers.base_controller import BaseController, base_controller
-from controllers.project_controller import project_controller
+from src.helpers.config import Settings, get_settings
+from src.models.response_models import MessageResponse, FileUploadResponse
+from src.models.enums import ResponseSignal
+from src.controllers.base_controller import BaseController, base_controller
+from src.controllers.project_controller import project_controller
 from pathlib import Path
 import shutil
 import re

@@ -36,9 +36,10 @@ class CoHereProvider(BaseLLM):
         """Change the model used for generating text."""
         self.generation_model_id = model_id
 
-    def set_embedding_model(self, model_id: str):
+    def set_embedding_model(self, model_id: str, embedding_size: int = None):
         """Change the model used for converting text into vectors."""
         self.embedding_model_id = model_id
+        self.embedding_size = embedding_size
 
     def process_text(self, text: str):
         """

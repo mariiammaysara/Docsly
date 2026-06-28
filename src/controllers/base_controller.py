@@ -1,6 +1,6 @@
 from fastapi import UploadFile, HTTPException
-from helpers.config import Settings
-from models.response_models import MessageResponse, HealthResponse
+from src.helpers.config import Settings
+from src.models.response_models import MessageResponse, HealthResponse
 import random
 import string
 from pathlib import Path

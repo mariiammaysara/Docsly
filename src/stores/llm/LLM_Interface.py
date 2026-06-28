@@ -60,6 +60,7 @@ class BaseLLM(ABC):
         """Set the specific model ID to use for generation."""
         self.generation_model_id = model_id
 
-    def set_embedding_model(self, model_id: str):
-        """Set the specific model ID to use for embeddings."""
+    def set_embedding_model(self, model_id: str, embedding_size: int = None):
+        """Set the specific model ID and size to use for embeddings."""
         self.embedding_model_id = model_id
+        self.embedding_size = embedding_size

@@ -1,7 +1,4 @@
 from .LLM_Interface import BaseLLM
-from .LLM_Providers import OllamaProvider, GeminiProvider
-from ..providers.OpenAIProvider import OpenAIProvider
-from ..providers.CoHereProvider import CoHereProvider
 from .LLM_Enums import LLMEnums
 
 class LLMProviderFactory:
@@ -24,6 +21,7 @@ class LLMProviderFactory:
         instance = None
 
         if provider == LLMEnums.OPENAI.value:
+            from ..providers.OpenAIProvider import OpenAIProvider
             instance = OpenAIProvider(
                 api_key=self.config.OPENAI_API_KEY,
                 api_url=getattr(self.config, 'OPENAI_API_URL', None),
@@ -33,6 +31,7 @@ class LLMProviderFactory:
             )
             
         elif provider == LLMEnums.OLLAMA.value:
+            from .LLM_Providers import OllamaProvider
             instance = OllamaProvider(
                 api_url=getattr(self.config, 'OLLAMA_API_URL', 'http://localhost:11434'),
                 default_input_max_characters=getattr(self.config, 'INPUT_DAFAULT_MAX_CHARACTERS', 1000),
@@ -41,6 +40,7 @@ class LLMProviderFactory:
             )
 
         elif provider == LLMEnums.GEMINI.value:
+            from .LLM_Providers import GeminiProvider
             instance = GeminiProvider(
                 api_key=getattr(self.config, 'GEMINI_API_KEY', None),
                 api_url=getattr(self.config, 'GEMINI_API_URL', None),
@@ -50,6 +50,7 @@ class LLMProviderFactory:
             )
 
         elif provider == LLMEnums.COHERE.value:
+            from ..providers.CoHereProvider import CoHereProvider
             instance = CoHereProvider(
                 api_key=getattr(self.config, 'COHERE_API_KEY', None),
                 api_url=getattr(self.config, 'COHERE_API_URL', None),

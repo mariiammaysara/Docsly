@@ -1,7 +1,7 @@
 from typing import Annotated, Any
 from pydantic import BeforeValidator, PlainSerializer
 from bson import ObjectId
-from helpers.config import get_settings
+from src.helpers.config import get_settings
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 # ---------------------------------------------------------------------------

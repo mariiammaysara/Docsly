@@ -1,6 +1,5 @@
 from .VectorDB_Enums import VectorDBEnums
 from .VectorDB_Interface import BaseVectorDB
-from ..providers.QdrantProvider import QdrantProvider 
 from typing import Any, Optional
 
 class VectorDBProviderFactory:
@@ -20,6 +19,7 @@ class VectorDBProviderFactory:
         Create the requested Vector DB provider based on the configuration.
         """
         if provider == VectorDBEnums.QDRANT.value:
+            from ..providers.QdrantProvider import QdrantProvider 
             # Qdrant doesn't need db_client, but we pass config
             return QdrantProvider(config=self.config)
             

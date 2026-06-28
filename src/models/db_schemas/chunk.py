@@ -62,3 +62,28 @@ class Chunk(BaseModel):
             }
         }
     )
+
+class RetrievedChunk(BaseModel):
+    """
+    Schema for chunks retrieved from the database/vector store.
+    Used for augmented answers generation.
+    """
+    chunk_uuid: str = Field(..., description="Unique identifier of the chunk")
+    file_id: str = Field(..., description="Original filename or unique file ID")
+    chunk_text: str = Field(..., description="The raw text content of the chunk")
+    chunk_metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadata associated with the chunk")
+    score: Optional[float] = Field(None, description="Relevance score from the vector search")
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_schema_extra={
+            "example": {
+                "chunk_uuid": "123e4567-e89b-12d3-a456-426614174000",
+                "file_id": "sample.pdf",
+                "chunk_text": "This is a retrieved chunk content.",
+                "chunk_metadata": {"source": "sample.pdf", "page": 1},
+                "score": 0.95
+            }
+        }
+    )

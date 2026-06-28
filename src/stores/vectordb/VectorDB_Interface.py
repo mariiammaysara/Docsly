@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
-from src.models.db_schemas.retrieval import RetrievedDocument
+from src.models.db_schemas.chunk import RetrievedChunk
 
 class BaseVectorDB(ABC):
     """
@@ -62,6 +62,6 @@ class BaseVectorDB(ABC):
         pass
 
     @abstractmethod
-    async def search_by_vector(self, collection_name: str, vector: list, limit: int) -> List[RetrievedDocument]:
+    async def search_by_vector(self, collection_name: str, vector: list, limit: int) -> Optional[List[RetrievedChunk]]:
         """Search for the most similar vectors and return standardized results."""
         pass

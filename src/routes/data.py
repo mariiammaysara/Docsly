@@ -3,16 +3,20 @@ from fastapi.responses import JSONResponse
 import os
 import aiofiles
 import logging
-from helpers.config import get_settings, Settings
-from controllers import data_controller, project_controller, ProcessController
-from models.response_models import MessageResponse, FileUploadResponse
-from models import ProjectRepository, AssetModel, ChunkRepository
-from models.db_schemas import Asset
-from models.enums import ResponseSignal
-from routes.schemas import ProcessRequest
+from src.helpers.config import get_settings, Settings
+from src.controllers import DataController, ProjectController, ProcessController
+from src.models.response_models import MessageResponse, FileUploadResponse
+from src.models import ProjectRepository, AssetModel, ChunkRepository
+from src.models.db_schemas import Asset
+from src.models.enums import ResponseSignal
+from src.routes.schemas import ProcessRequest
 import shutil
 
 logger = logging.getLogger(__name__)
+
+# Instantiate controllers
+data_ctrl = DataController()
+project_ctrl = ProjectController()
 
 data_router = APIRouter(
     prefix="/api/v1/data",
@@ -22,7 +26,7 @@ data_router = APIRouter(
 @data_router.get("/info", response_model=MessageResponse)
 async def data_info(settings: Settings = Depends(get_settings)):
     """Data info route from the controller."""
-    return await data_controller.get_data_info(settings)
+    return await data_ctrl.get_data_info(settings)
 
 @data_router.post("/upload/{project_id}")
 async def upload_data(request: Request, project_id: str, file: UploadFile,
@@ -34,7 +38,7 @@ async def upload_data(request: Request, project_id: str, file: UploadFile,
     project = await project_repo.get_project_or_create_one(project_id)
     
     # validate the file properties using shared instance
-    is_valid, result_signal = data_controller.validate_uploaded_file(file=file)
+    is_valid, result_signal = data_ctrl.validate_uploaded_file(file=file)
     
     if not is_valid:
         return JSONResponse(
@@ -45,11 +49,11 @@ async def upload_data(request: Request, project_id: str, file: UploadFile,
         )
     
     # Get project path and ensure it exists using shared instance
-    project_dir_path = project_controller.get_project_path(project_id=project_id)
+    project_dir_path = project_ctrl.get_project_path(project_id=project_id)
     project_dir_path.mkdir(parents=True, exist_ok=True)
     
     # Generate unique file path exactly as required
-    file_id, file_path = data_controller.generate_unique_filepath(
+    file_id, file_path = data_ctrl.generate_unique_filepath(
         orig_file_name=file.filename,
         project_id=project_id
     )
@@ -121,7 +125,11 @@ async def process_data(request: Request, project_id: str, request_data: ProcessR
         logger.info(f"Reset triggered for project {project_id}: Deleted {deleted_count} old chunks.")
     
     # Instantiate the process controller for the specific project
-    process_controller = ProcessController(project_id)
+    process_controller = ProcessController(
+        project_id, 
+        request.app.embedding_client, 
+        request.app.vectordb_client
+    )
     all_chunks = []
     processed_files = []
     
@@ -147,7 +155,7 @@ async def process_data(request: Request, project_id: str, request_data: ProcessR
     # 2. Process each file in the list
     logger.info(f"Starting batch processing loop for {len(files_to_process)} assets...")
     for file_id in files_to_process:
-        is_success, process_message, chunks = process_controller.process_file(
+        is_success, process_message, chunks = await process_controller.process_file(
             file_id=file_id,
             chunk_size=request_data.chunk_size,
             overlap_size=request_data.overlap_size,

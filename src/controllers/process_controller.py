@@ -5,7 +5,7 @@ import logging
 from langchain_community.document_loaders import TextLoader
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from models import ProcessingEnum
+from src.models import ProcessingEnum
 from typing import List, Optional
 from dataclasses import dataclass
 
@@ -27,9 +27,11 @@ class ProcessController(BaseController):
     and breaking them into smaller parts (chunks) so the AI can read them.
     """
 
-    def __init__(self, project_id: str):
+    def __init__(self, project_id: str, embedding_client = None, vectordb_client = None):
         super().__init__()
         self.project_id = project_id
+        self.embedding_client = embedding_client
+        self.vectordb_client = vectordb_client
         # Get the folder where this project's files are stored
         self.project_path = project_controller.get_project_path(project_id=project_id)
 
@@ -95,12 +97,13 @@ class ProcessController(BaseController):
         # Cut the text and return the chunks
         return splitter.split_documents(file_content)
 
-    def process_file(self, file_id: str, chunk_size: int = 800, overlap_size: int = 150, do_reset: int = 0):
+    async def process_file(self, file_id: str, chunk_size: int = 800, overlap_size: int = 150, do_reset: int = 0):
         """
         The main function that does everything:
         1. Reads the file.
         2. Breaks it into chunks.
-        3. Returns the result.
+        3. Generates embeddings and stores them in VectorDB.
+        4. Returns the result.
         """
         logger.info(f"Starting to process file: {file_id} in project: {self.project_id}")
         
@@ -117,6 +120,38 @@ class ProcessController(BaseController):
             overlap_size=overlap_size
         )
         
-        # Step 3: Finish and return the chunks
+        # Step 3: Vectorization (If clients are provided)
+        if self.embedding_client and self.vectordb_client:
+            logger.info(f"Vectorizing {len(chunks)} chunks for project: {self.project_id}...")
+            
+            # Prepare data for VectorDB
+            texts = [c.page_content for c in chunks]
+            
+            # Generate embeddings for all chunks at once (More efficient)
+            vectors = self.embedding_client.embed_text(texts)
+            
+            # Ensure collection exists in VectorDB
+            if vectors and len(vectors) > 0:
+                embedding_size = len(vectors[0]) 
+                
+                # Standardized collection name (consistent with NLPController)
+                collection_name = f"collection_{embedding_size}_{self.project_id}".strip()
+                
+                await self.vectordb_client.create_collection(
+                    collection_name=collection_name,
+                    embedding_size=embedding_size,
+                    do_reset=bool(do_reset)
+                )
+                
+                # Insert many
+                await self.vectordb_client.insert_many(
+                    collection_name=collection_name,
+                    texts=texts,
+                    vectors=vectors,
+                    metadata=[c.metadata for c in chunks]
+                )
+                logger.info(f"Successfully stored {len(chunks)} vectors in VectorDB collection: {collection_name}")
+
+        # Step 4: Finish and return the chunks
         logger.info(f"Success: File '{file_id}' was cut into {len(chunks)} chunks.")
-        return True, f"File successfully processed into {len(chunks)} chunks.", chunks
+        return True, f"File successfully processed and vectorized into {len(chunks)} chunks.", chunks
