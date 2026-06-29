@@ -28,7 +28,31 @@ The backend is built as a modular, factory-based system. Each major component (L
 
 ## Architecture
 
-![Docsly Architecture](src/assets/docsly_architecture.png)
+The system architecture and components interaction:
+
+```mermaid
+graph TD
+    Client[Client or API Caller]
+    
+    subgraph Docsly [Docsly RAG Service Boundary]
+        API[Backend API Service]
+        FileStore[File Storage]
+        RelDB[(PostgreSQL Metadata)]
+        VectorDB[(pgvector Vector Store)]
+    end
+    
+    subgraph External [External Services]
+        Qdrant[(Qdrant Vector DB)]
+        LLM[LLM and Embedding Providers]
+    end
+    
+    Client -->|Upload and search queries| API
+    API -->|Saves uploaded documents| FileStore
+    API -->|Queries and persists metadata| RelDB
+    API -->|Pushes and queries vector embeddings| VectorDB
+    API -.->|Pushes and queries vector embeddings - Alternative| Qdrant
+    API -->|Requests text embeddings and answers| LLM
+```
 
 **Request flow:**
 
