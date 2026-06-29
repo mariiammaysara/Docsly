@@ -1,6 +1,8 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
+*.pyo
+*.pyd
 *$py.class
 
 # C extensions
@@ -149,8 +151,10 @@ activemq-data/
 
 # Environments
 .env
+.env.*
 .envrc
 .venv
+.venv/
 env/
 venv/
 ENV/
@@ -181,12 +185,8 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# PyCharm
-#   JetBrains specific template is maintained in a separate JetBrains.gitignore that can
-#   be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
-#   and can be added to the global gitignore or merged into this file.  For a more nuclear
-#   option (not recommended) you can uncomment the following to ignore the entire idea folder.
-# .idea/
+# PyCharm / JetBrains
+.idea/
 
 # Abstra
 #   Abstra is an AI-powered process automation framework.
@@ -195,11 +195,7 @@ cython_debug/
 .abstra/
 
 # Visual Studio Code
-#   Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore 
-#   that can be found at https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore
-#   and can be added to the global gitignore or merged into this file. However, if you prefer, 
-#   you could uncomment the following to ignore the entire vscode folder
-# .vscode/
+.vscode/
 
 # Ruff stuff:
 .ruff_cache/
@@ -218,3 +214,21 @@ __marimo__/
 # Utility tools
 src/wipe_db.py
 
+# OS
+.DS_Store
+Thumbs.db
+
+# Vector Databases
+qdrant_storage/
+chroma/
+chroma_db/
+*.faiss
+*.index
+
+# SQLite
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker
+docker-compose.override.yml
