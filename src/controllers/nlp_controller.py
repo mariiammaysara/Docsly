@@ -1,5 +1,5 @@
 from .base_controller import BaseController
-from src.models.db_schemas import Project, Chunk
+from src.models.db_schemas import PGProject, PGChunk
 from src.stores.llm.LLM_Enums import DocumentTypeEnum
 from src.models.db_schemas.retrieval import RetrievedDocument
 from typing import List, Tuple, Dict, Any
@@ -23,12 +23,12 @@ class NLPController(BaseController):
                             getattr(self.vectordb_client, 'default_vector_size', 384))
         return f"collection_{vector_size}_{project_id}".strip()
     
-    async def reset_vector_db_collection(self, project: Project):
+    async def reset_vector_db_collection(self, project: PGProject):
         """Delete and recreate the project collection."""
         collection_name = self.create_collection_name(project_id=project.project_id)
         return await self.vectordb_client.delete_collection(collection_name=collection_name)
     
-    async def get_vector_db_collection_info(self, project: Project):
+    async def get_vector_db_collection_info(self, project: PGProject):
         """Retrieve collection details and format them as a dictionary."""
         collection_name = self.create_collection_name(project_id=project.project_id)
         collection_info = await self.vectordb_client.get_collection_info(collection_name=collection_name)
@@ -38,7 +38,7 @@ class NLPController(BaseController):
             json.dumps(collection_info, default=lambda x: x.__dict__ if hasattr(x, '__dict__') else str(x))
         )
     
-    async def index_into_vector_db(self, project: Project, chunks: List[Chunk],
+    async def index_into_vector_db(self, project: PGProject, chunks: List[PGChunk],
                                    chunks_ids: List[str], 
                                    do_reset: bool = False):
         """
@@ -75,7 +75,7 @@ class NLPController(BaseController):
 
         return True
 
-    async def search_vector_db_collection(self, project: Project, text: str, limit: int = 10):
+    async def search_vector_db_collection(self, project: PGProject, text: str, limit: int = 10):
         """
         Performs similarity search with robust vector handling.
         """
@@ -105,7 +105,7 @@ class NLPController(BaseController):
 
         return results if results else False
     
-    async def answer_rag_question(self, project: Project, query: str, limit: int = 10):
+    async def answer_rag_question(self, project: PGProject, query: str, limit: int = 10):
         """
         Professional RAG answer generation with system prompt and chat history.
         """
@@ -157,3 +157,4 @@ class NLPController(BaseController):
         )
         
         return answer_response.text, full_prompt, chat_history
+

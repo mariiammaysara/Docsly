@@ -1,0 +1,238 @@
+{
+	"info": {
+		"_postman_id": "7a35f0f3-2bd1-4ca6-bdf8-6c845d0a927a",
+		"name": "Docsly API",
+		"description": "Postman collection for Docsly - RAG Application Backend.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Base",
+			"item": [
+				{
+					"name": "Welcome Message",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/health",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"health"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Data",
+			"item": [
+				{
+					"name": "Get Data Info",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/data/info",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"data",
+								"info"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Upload File",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/data/upload/:project_id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"data",
+								"upload",
+								":project_id"
+							],
+							"variable": [
+								{
+									"key": "project_id",
+									"value": "docsly_v1"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Process File",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"file_id\": \"\",\n    \"chunk_size\": 500,\n    \"overlap_size\": 50,\n    \"do_reset\": 0\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/data/process/:project_id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"data",
+								"process",
+								":project_id"
+							],
+							"variable": [
+								{
+									"key": "project_id",
+									"value": "docsly_v1"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "NLP",
+			"item": [
+				{
+					"name": "Index Project",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"do_reset\": 0\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/nlp/index/push/:project_id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"nlp",
+								"index",
+								"push",
+								":project_id"
+							],
+							"variable": [
+								{
+									"key": "project_id",
+									"value": "docsly_v1"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Search / Query RAG",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"text\": \"What is the main topic of this project?\",\n    \"limit\": 5\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/nlp/index/search/:project_id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"nlp",
+								"index",
+								"search",
+								":project_id"
+							],
+							"variable": [
+								{
+									"key": "project_id",
+									"value": "docsly_v1"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8000",
+			"type": "string"
+		}
+	]
+}

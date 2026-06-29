@@ -9,10 +9,10 @@ class Asset(BaseModel):
     Schema for the 'Asset' collection.
     Tracks individual file uploads and their metadata.
     """
-    id: Optional[PyObjectId] = Field(alias="_id", default=None)
+    id: Optional[Any] = Field(alias="_id", default=None)
     asset_uuid: str = Field(default_factory=lambda: str(uuid.uuid4()), unique=True)
     
-    asset_project_id: PyObjectId = Field(..., description="Reference to the project this asset belongs to")
+    asset_project_id: Any = Field(..., description="Reference to the project this asset belongs to")
     
     asset_name: str = Field(..., min_length=1, description="Original name of the file")
     asset_type: str = Field(..., min_length=1, description="MIME type or category (from AssetTypeEnum)")

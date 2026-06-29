@@ -61,8 +61,26 @@ class LLMProviderFactory:
 
         if instance:
             # Inject model IDs from global config
-            instance.set_generation_model(getattr(self.config, 'GENERATION_MODEL_ID', None))
-            instance.set_embedding_model(getattr(self.config, 'EMBEDDING_MODEL_ID', None))
+            gen_model = getattr(self.config, 'GENERATION_MODEL_ID', None)
+            if gen_model:
+                # If we configured a model from another provider, don't override the default
+                if provider == LLMEnums.COHERE.value and any(x in gen_model.lower() for x in ["gpt", "gemini", "claude"]):
+                    pass
+                elif provider == LLMEnums.OPENAI.value and any(x in gen_model.lower() for x in ["command", "gemini", "claude"]):
+                    pass
+                elif provider == LLMEnums.GEMINI.value and any(x in gen_model.lower() for x in ["gpt", "command", "claude"]):
+                    pass
+                else:
+                    instance.set_generation_model(gen_model)
+
+            embed_model = getattr(self.config, 'EMBEDDING_MODEL_ID', None)
+            if embed_model:
+                if provider == LLMEnums.COHERE.value and "text-embedding" in embed_model.lower():
+                    pass
+                elif provider == LLMEnums.OPENAI.value and "embed" in embed_model.lower():
+                    pass
+                else:
+                    instance.set_embedding_model(embed_model)
             return instance
 
         # Return None if the provider is not supported

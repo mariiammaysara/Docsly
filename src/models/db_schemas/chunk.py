@@ -9,11 +9,11 @@ class Chunk(BaseModel):
     Schema for the 'Chunk' collection.
     Stores decomposed document fragments for vector retrieval and LLM context.
     """
-    id: Optional[PyObjectId] = Field(alias="_id", default=None)
+    id: Optional[Any] = Field(alias="_id", default=None)
     chunk_uuid: str = Field(default_factory=lambda: str(uuid.uuid4()), unique=True)
     
-    chunk_project_id: PyObjectId = Field(..., description="Reference to the owning project")
-    chunk_asset_id: Optional[PyObjectId] = Field(None, description="Reference to the specific asset/file record")
+    chunk_project_id: Any = Field(..., description="Reference to the owning project")
+    chunk_asset_id: Optional[Any] = Field(None, description="Reference to the specific asset/file record")
     
     file_id: str = Field(..., description="Original filename or unique file ID")
     chunk_order: int = Field(..., gt=0, description="Position of the chunk within the original file")

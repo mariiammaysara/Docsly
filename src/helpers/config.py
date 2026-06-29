@@ -56,8 +56,17 @@ class Settings(BaseSettings):
     # MongoDB settings
     MONGODB_USERNAME: str = "admin"
     MONGODB_PASSWORD: str = "admin"
-    MONGODB_URL: str
-    MONGODB_DATABASE_NAME: str
+    MONGODB_URL: str = ""
+    MONGODB_DATABASE_NAME: str = ""
+
+
+    # PostgreSQL + pgvector settings
+    POSTGRES_USERNAME: str
+    POSTGRES_PASSWORD: str
+    POSTGRES_HOST: str
+    POSTGRES_PORT: int = 5432
+    POSTGRES_MAIN_DATABASE: str
+
 
     
     # Read from .env file

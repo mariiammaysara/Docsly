@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 import uuid
-from typing import Optional
+from typing import Optional, Any
 from ..base_data_model import PyObjectId
 from ..enums import ProcessingStatusEnum
 
@@ -10,7 +10,7 @@ class Project(BaseModel):
     Schema for the 'Project' collection.
     Tracks individual project metadata and discovery.
     """
-    id: Optional[PyObjectId] = Field(alias="_id", default=None)
+    id: Optional[Any] = Field(alias="_id", default=None)
     project_id: str = Field(..., description="Unique human-readable project identifier")
     project_uuid: str = Field(default_factory=lambda: str(uuid.uuid4()), unique=True)
     

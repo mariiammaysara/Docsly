@@ -232,3 +232,13 @@ chroma_db/
 
 # Docker
 docker-compose.override.yml
+
+# Alembic
+alembic.ini
+
+# WSL virtual environment
+.venv_wsl/
+
+# Temporary logs
+debug_log.txt
+

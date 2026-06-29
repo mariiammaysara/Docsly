@@ -7,7 +7,7 @@ from src.helpers.config import get_settings, Settings
 from src.controllers import DataController, ProjectController, ProcessController
 from src.models.response_models import MessageResponse, FileUploadResponse
 from src.models import ProjectRepository, AssetModel, ChunkRepository
-from src.models.db_schemas import Asset
+from src.models.db_schemas import Asset, Chunk
 from src.models.enums import ResponseSignal
 from src.routes.schemas import ProcessRequest
 import shutil
@@ -133,17 +133,24 @@ async def process_data(request: Request, project_id: str, request_data: ProcessR
     all_chunks = []
     processed_files = []
     
-    # 1. Determine which files to process
+    # 1. Determine which assets to process
+    asset_model = await AssetModel.create_instance(request.app.db)
+    project_assets = await asset_model.get_project_assets(project_id)
+
     if request_data.file_id:
         # Process specific file
-        files_to_process = [request_data.file_id]
+        target_asset = None
+        for asset in project_assets:
+            unique_name = os.path.basename(asset.asset_path)
+            if request_data.file_id in (str(asset.id), asset.asset_uuid, asset.asset_name, unique_name):
+                target_asset = asset
+                break
+        assets_to_process = [target_asset] if target_asset else []
     else:
         # Batch process: Get all assets for this project from DB
-        asset_model = await AssetModel.create_instance(request.app.db)
-        project_assets = await asset_model.get_project_assets(project_id)
-        files_to_process = [asset.asset_name for asset in project_assets]
+        assets_to_process = project_assets
         
-    if not files_to_process:
+    if not assets_to_process:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={
@@ -152,21 +159,48 @@ async def process_data(request: Request, project_id: str, request_data: ProcessR
             }
         )
         
-    # 2. Process each file in the list
-    logger.info(f"Starting batch processing loop for {len(files_to_process)} assets...")
-    for file_id in files_to_process:
+    # 2. Process each asset in the list
+    logger.info(f"Starting batch processing loop for {len(assets_to_process)} assets...")
+    project_repo = await ProjectRepository.create(request.app.db)
+    project = await project_repo.get_project_or_create_one(project_id)
+    chunk_repo = await ChunkRepository.create(request.app.db)
+
+    for asset in assets_to_process:
+        unique_filename = os.path.basename(asset.asset_path)
         is_success, process_message, chunks = await process_controller.process_file(
-            file_id=file_id,
+            file_id=unique_filename,
             chunk_size=request_data.chunk_size,
             overlap_size=request_data.overlap_size,
             do_reset=request_data.do_reset
         )
         
         if is_success:
+            # Map langchain Document chunks to database Chunk objects
+            chunk_objects = [
+                Chunk(
+                    chunk_project_id=project.id,
+                    chunk_asset_id=asset.id,
+                    file_id=asset.asset_name,
+                    chunk_order=idx + 1,
+                    chunk_text=doc.page_content,
+                    chunk_metadata=doc.metadata
+                )
+                for idx, doc in enumerate(chunks)
+            ]
+            
+            # Save chunks to DB
+            if chunk_objects:
+                inserted = await chunk_repo.insert_many_chunks(chunk_objects)
+                if inserted:
+                    logger.info(f"Saved {len(chunk_objects)} chunks to database for asset: {asset.asset_name}")
+                else:
+                    logger.error(f"Failed to save chunks to database for asset: {asset.asset_name}")
+            
             all_chunks.extend(chunks)
-            processed_files.append(file_id)
+            processed_files.append(asset.asset_name)
         else:
-            logger.warning(f"Skipping file {file_id}: {process_message}")
+            logger.warning(f"Skipping file {asset.asset_name}: {process_message}")
+
 
     if not all_chunks:
         return JSONResponse(

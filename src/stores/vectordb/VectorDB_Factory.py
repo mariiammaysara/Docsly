@@ -25,8 +25,8 @@ class VectorDBProviderFactory:
             
         elif provider == VectorDBEnums.PGVECTOR.value:
             # PGVector will need the db_client (Postgres connection)
-            # from ..providers.PgVectorProvider import PgVectorProvider
-            # return PgVectorProvider(config=self.config, db_client=self.db_client)
-            pass
+            from ..providers.PgVectorProvider import PgVectorProvider
+            return PgVectorProvider(config=self.config, db_client=self.db_client)
+
             
         return None

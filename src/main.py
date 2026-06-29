@@ -13,7 +13,9 @@ from src.routes.nlp import nlp_router
 from src.helpers.config import get_settings, Settings
 from src.controllers import BaseController
 from src.models.response_models import MessageResponse
-from motor.motor_asyncio import AsyncIOMotorClient
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from src.models.db_schemas.docsly import Base
+
 from contextlib import asynccontextmanager
 import logging
 
@@ -38,28 +40,33 @@ logger = logging.getLogger(__name__)
 # settings = get_settings() # Moved up to support logging config early
 
 # ---------------------------------------------------------------------------
-# App Setup with MongoDB Lifecycle
+# App Setup with PostgreSQL Lifecycle
 # ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Initialize MongoDB Client
-    logger.info("Initializing MongoDB connection...")
+    # Startup: Initialize PostgreSQL Client
+    logger.info("Initializing PostgreSQL connection...")
     try:
-        app.db_client = AsyncIOMotorClient(settings.MONGODB_URL)
-        app.db = app.db_client[settings.MONGODB_DATABASE_NAME]
+        postgres_url = f"postgresql+asyncpg://{settings.POSTGRES_USERNAME}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_MAIN_DATABASE}"
+        app.db_engine = create_async_engine(postgres_url, echo=False)
+        app.db = async_sessionmaker(app.db_engine, expire_on_commit=False)
         
-        # Ping the database to verify connection
-        await app.db.command("ping")
-        logger.info("MongoDB connection established successfully.")
+        # Verify connection and verify tables exist
+        async with app.db_engine.begin() as conn:
+            from sqlalchemy import text
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+            await conn.run_sync(Base.metadata.create_all)
+            
+        logger.info("PostgreSQL connection established and tables/extensions initialized.")
 
-        # Enforce Indices and Initialize Collections via Async Factory Method
+        # Initialize Repositories (Factory Pattern)
         from src.models import ProjectRepository, ChunkRepository, AssetModel
         
         await ProjectRepository.create(app.db)
         await ChunkRepository.create(app.db)
         await AssetModel.create_instance(app.db)
         
-        logger.info("Database collections and indices initialized (Factory Pattern).")
+        logger.info("Database repositories initialized.")
 
         # ---------------------------------------------------------------------------
         # LLM Clients Initialization
@@ -79,7 +86,8 @@ async def lifespan(app: FastAPI):
         # Vector DB Initialization
         # ---------------------------------------------------------------------------
         from src.stores.vectordb import VectorDBProviderFactory
-        vectordb_factory = VectorDBProviderFactory(settings)
+        # Pass app.db (the SQL sessionmaker) to the VectorDBProviderFactory
+        vectordb_factory = VectorDBProviderFactory(settings, db_client=app.db)
         app.vectordb_client = vectordb_factory.create(settings.VECTOR_DB_BACKEND)
         await app.vectordb_client.connect()
         logger.info(f"VectorDB client initialized ({settings.VECTOR_DB_BACKEND})")
@@ -95,20 +103,22 @@ async def lifespan(app: FastAPI):
         logger.info(f"Template Parser initialized (Lang: {settings.PRIMARY_LANG})")
 
     except Exception as e:
-        logger.error(f"Failed to connect to MongoDB: {e}")
+        logger.error(f"Failed to connect to PostgreSQL: {e}")
         raise e
 
     yield
 
-    # Shutdown: Close MongoDB and VectorDB Connections
+    # Shutdown: Close PostgreSQL and VectorDB Connections
     logger.info("Shutting down resources...")
     
     if hasattr(app, 'vectordb_client'):
         await app.vectordb_client.disconnect()
         logger.info("VectorDB connection closed.")
 
-    app.db_client.close()
-    logger.info("MongoDB connection closed.")
+    if hasattr(app, 'db_engine'):
+        await app.db_engine.dispose()
+        logger.info("PostgreSQL connection closed.")
+
 
 app = FastAPI(
     title=settings.APP_NAME,

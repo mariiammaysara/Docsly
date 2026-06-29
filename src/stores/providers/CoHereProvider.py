@@ -29,7 +29,7 @@ class CoHereProvider(BaseLLM):
         self.logger = logging.getLogger(__name__)
 
         # Set default models
-        self.generation_model_id = "command" 
+        self.generation_model_id = "command-r-08-2024" 
         self.embedding_model_id = "embed-english-v3.0" 
 
     def set_generation_model(self, model_id: str):
