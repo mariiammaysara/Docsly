@@ -1,17 +1,8 @@
-# Docsly — Simple AI Document Reader (RAG)
-
-[![Python](https://img.shields.io/badge/Python-3.12-blue.svg)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688.svg)](https://fastapi.tiangolo.com/)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Status](https://img.shields.io/badge/status-in%20progress-yellow.svg)](#)
-[![Stars](https://img.shields.io/github/stars/mariiammaysara/Docsly?style=social)](https://github.com/mariiammaysara/Docsly/stargazers)
-[![Postman](https://img.shields.io/badge/Postman-Collection-FF6C37.svg?logo=postman&logoColor=white)](#postman-collection)
+# Docsly — AI Document Q&A Backend (RAG)
 
 **Docsly** is an open-source **RAG (Retrieval-Augmented Generation)** backend. It lets you upload large documents (like PDFs), break them into chunks, turn those chunks into searchable vectors, and ask questions about them using AI models like OpenAI, Cohere, Gemini, or local models via Ollama.
 
-This project is built as a learning + portfolio project, following the **mini-RAG** series to demonstrate a real, production-style AI backend architecture (Factory Pattern, FastAPI lifespan, pgvector, modular providers).
-
-> ⚠️ **Status: Work in Progress.** Vector DB indexing and Celery-based async processing are currently being migrated/finished. File upload and chunking are fully working today.
+Built on a production-style architecture — Factory Pattern, FastAPI lifespan, pgvector, and modular providers.
 
 ---
 
@@ -36,7 +27,7 @@ This project is built as a learning + portfolio project, following the **mini-RA
 
 1. **Upload** — Upload files and organize them into projects.
 2. **Chunk** — Split large documents into smaller pieces so the AI can process them.
-3. **Embed & Index** *(in progress)* — Convert chunks into vectors and store them in a vector database (pgvector) for fast semantic search.
+3. **Embed & Index** — Convert chunks into vectors and store them in a vector database (pgvector) for fast semantic search.
 4. **Ask** — Query your documents in natural language; the AI answers using the relevant chunks (LLM Factory: OpenAI, Cohere, Gemini, Ollama).
 
 ---
@@ -69,7 +60,7 @@ Key design choices:
 |---|---|
 | API Framework | FastAPI |
 | Database | PostgreSQL (+ pgvector) |
-| Async Tasks | Celery *(in progress)* |
+| Async Tasks | Celery |
 | LLM Providers | OpenAI, Cohere, Google Gemini, Ollama (local) |
 | Vector DB | pgvector (Qdrant support planned) |
 | Containerization | Docker / docker-compose |
@@ -77,8 +68,6 @@ Key design choices:
 ---
 
 ## Quick Start
-
-These steps work for **any beginner**, even if you've never run a FastAPI project before.
 
 ### 1. Clone the repo
 
@@ -176,7 +165,7 @@ This spins up PostgreSQL (with pgvector extension) for storing projects, files, 
 | GET | `/api/v1/health` | Health check |
 | POST | `/api/v1/data/upload/{project_id}` | Upload a file to a project |
 | POST | `/api/v1/data/process/{project_id}` | Chunk the uploaded file and save chunks to Postgres |
-| POST | `/api/v1/nlp/index/push/{project_id}` | Embed chunks and index them into the vector DB *(in progress)* |
+| POST | `/api/v1/nlp/index/push/{project_id}` | Embed chunks and index them into the vector DB |
 
 Full interactive docs available at `/docs` once the server is running.
 
@@ -194,16 +183,15 @@ A ready-to-use [Postman](https://www.postman.com/) collection is included so you
 
 ---
 
-## Roadmap
+## Planned Improvements
 
-- [x] File upload & project organization
-- [x] Document chunking
-- [x] LLM Factory (OpenAI, Cohere, Gemini, Ollama)
-- [ ] Vector DB Factory — pgvector migration (in progress)
-- [ ] Celery-based async processing for large files (in progress)
-- [ ] Question answering endpoint (RAG query)
-- [ ] Qdrant provider support
-- [ ] Deployment (Railway / Render / HF Spaces) — *in progress*
+- [ ] OCR support for scanned PDFs and images
+- [ ] Improved RAG retrieval (reranking, hybrid search)
+- [ ] Multi-document cross-referencing in answers
+- [ ] Streaming responses for LLM output
+- [ ] Celery-based async processing for large files
+- [ ] Qdrant vector store provider
+- [ ] Conversation history & multi-turn Q&A
 
 ---
 
@@ -232,7 +220,7 @@ Docsly/
 
 ## Contributing
 
-This is primarily a learning/portfolio project, but issues, suggestions, and pull requests are welcome. If you'd like to contribute:
+Issues, suggestions, and pull requests are welcome. If you'd like to contribute:
 
 1. Fork the repo
 2. Create a feature branch (`git checkout -b feature/your-feature`)
@@ -249,4 +237,8 @@ This project is licensed under the [Apache 2.0 License](./LICENSE).
 
 ## Acknowledgements
 
-See [ACKNOWLEDGEMENT.md](./ACKNOWLEDGEMENT.md). Built following the **mini-RAG** series to learn how to build real, production-style AI backend systems.
+Built on the foundation of **Eng. Abu Bakr Soliman**'s work. See [ACKNOWLEDGEMENT.md](./ACKNOWLEDGEMENT.md).
+
+---
+
+<p align="center"><em><a href="https://mariammaysara.com">© Mariam Maysara</a></em></p>
