@@ -9,6 +9,7 @@ Built on a production-style architecture — Factory Pattern, FastAPI lifespan, 
 ## Table of Contents
 
 - [What It Does](#what-it-does)
+- [Feature Highlights](#feature-highlights)
 - [Architecture Overview](#architecture-overview)
 - [Tech Stack](#tech-stack)
 - [Quick Start](#quick-start)
@@ -29,6 +30,47 @@ Built on a production-style architecture — Factory Pattern, FastAPI lifespan, 
 2. **Chunk** — Split large documents into smaller pieces so the AI can process them.
 3. **Embed & Index** — Convert chunks into vectors and store them in a vector database (pgvector) for fast semantic search.
 4. **Ask** — Query your documents in natural language; the AI answers using the relevant chunks (LLM Factory: OpenAI, Cohere, Gemini, Ollama).
+
+---
+
+## Feature Highlights
+
+### Document Ingestion Pipeline
+| Step | Endpoint | Description |
+|---|---|---|
+| Upload | `POST /data/upload/:project_id` | Accepts PDF, TXT, DOCX up to 10 MB. Saves file to disk and creates asset record in Postgres. |
+| Chunk | `POST /data/process/:project_id` | Splits document using LangChain text splitters. Saves each chunk with a foreign key back to its asset. |
+| Index | `POST /nlp/index/push/:project_id` | Embeds every chunk via the configured embedding provider and upserts vectors into the vector store. |
+| Search | `POST /nlp/index/search/:project_id` | Embeds the user query, runs ANN search, retrieves Top-K chunks, and generates a grounded answer. |
+
+### Multi-Provider AI — Plug & Play
+
+```
+Generation Backends     Embedding Backends
+─────────────────       ──────────────────
+ OpenAI   (GPT-4o)       Cohere   (multilingual-v3)
+ Google   (Gemini)       OpenAI   (text-embedding-3)
+ Ollama   (local)        Ollama   (local)
+```
+
+Swap providers by changing a single env variable — no code changes required.
+
+### Architecture & Engineering
+
+- **Factory Pattern** — LLM and Vector DB providers are fully decoupled from business logic. Add a new provider by implementing one interface.
+- **Async-first** — Built on FastAPI + SQLAlchemy (asyncpg) with zero blocking calls in the request path.
+- **FastAPI Lifespan** — Clean startup and teardown of database engines, connection pools, and AI clients.
+- **Separate chunk/embed steps** — Chunk IDs are persisted in Postgres before embedding, guaranteeing referential integrity in the vector store.
+- **pgvector native** — Vectors are stored directly in PostgreSQL alongside relational data — no extra infrastructure needed for the default setup.
+- **Modular repositories** — `ProjectRepository`, `AssetRepository`, `ChunkRepository` isolate all DB access behind clean async interfaces.
+
+### Supported File Types
+
+| Format | MIME Type |
+|---|---|
+| PDF | `application/pdf` |
+| Plain Text | `text/plain` |
+| Word Document | `application/vnd.openxmlformats-officedocument.wordprocessingml.document` |
 
 ---
 
