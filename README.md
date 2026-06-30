@@ -1,82 +1,209 @@
-# Docsly
+# Docsly — Simple AI Document Reader (RAG)
 
-Docsly is a Retrieval-Augmented Generation (RAG) backend service built with FastAPI and PostgreSQL. It lets you upload documents, process them into searchable chunks, index them in a vector database, and query them using large language models.
+[![Python](https://img.shields.io/badge/Python-3.12-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688.svg)](https://fastapi.tiangolo.com/)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Status](https://img.shields.io/badge/status-in%20progress-yellow.svg)](#)
+[![Stars](https://img.shields.io/github/stars/mariiammaysara/Docsly?style=social)](https://github.com/mariiammaysara/Docsly/stargazers)
+[![Postman](https://img.shields.io/badge/Postman-Collection-FF6C37.svg?logo=postman&logoColor=white)](#postman-collection)
+
+**Docsly** is an open-source **RAG (Retrieval-Augmented Generation)** backend. It lets you upload large documents (like PDFs), break them into chunks, turn those chunks into searchable vectors, and ask questions about them using AI models like OpenAI, Cohere, Gemini, or local models via Ollama.
+
+This project is built as a learning + portfolio project, following the **mini-RAG** series to demonstrate a real, production-style AI backend architecture (Factory Pattern, FastAPI lifespan, pgvector, modular providers).
+
+> ⚠️ **Status: Work in Progress.** Vector DB indexing and Celery-based async processing are currently being migrated/finished. File upload and chunking are fully working today.
 
 ---
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Architecture](#architecture)
+- [What It Does](#what-it-does)
+- [Architecture Overview](#architecture-overview)
 - [Tech Stack](#tech-stack)
+- [Quick Start](#quick-start)
+- [Environment Variables](#environment-variables)
+- [Running the Database (Docker)](#running-the-database-docker)
+- [API Endpoints](#api-endpoints)
+- [Roadmap](#roadmap)
 - [Project Structure](#project-structure)
-- [Getting Started](#getting-started)
-- [Configuration](#configuration)
-- [Database Setup](#database-setup)
-- [API Reference](#api-reference)
-- [Development Notes](#development-notes)
+- [Contributing](#contributing)
+- [License](#license)
+- [Acknowledgements](#acknowledgements)
 
 ---
 
-## Overview
+## What It Does
 
-Docsly accepts documents (PDF, DOCX, TXT), splits them into chunks, generates vector embeddings, and stores them in a vector database. When a user submits a query, the system retrieves the most relevant chunks and passes them to a language model to generate a grounded answer.
-
-The backend is built as a modular, factory-based system. Each major component (LLM provider, vector database, embedding model) is swappable through environment variables with no code changes.
+1. **Upload** — Upload files and organize them into projects.
+2. **Chunk** — Split large documents into smaller pieces so the AI can process them.
+3. **Embed & Index** *(in progress)* — Convert chunks into vectors and store them in a vector database (pgvector) for fast semantic search.
+4. **Ask** — Query your documents in natural language; the AI answers using the relevant chunks (LLM Factory: OpenAI, Cohere, Gemini, Ollama).
 
 ---
 
-## Architecture
+## Architecture Overview
 
-The system architecture and components interaction:
-
-```mermaid
-graph TD
-    Client[Client or API Caller]
-    
-    subgraph Docsly [Docsly RAG Service Boundary]
-        API[Backend API Service]
-        FileStore[File Storage]
-        RelDB[(PostgreSQL Metadata)]
-        VectorDB[(pgvector Vector Store)]
-    end
-    
-    subgraph External [External Services]
-        Qdrant[(Qdrant Vector DB)]
-        LLM[LLM and Embedding Providers]
-    end
-    
-    Client -->|Upload and search queries| API
-    API -->|Saves uploaded documents| FileStore
-    API -->|Queries and persists metadata| RelDB
-    API -->|Pushes and queries vector embeddings| VectorDB
-    API -.->|Pushes and queries vector embeddings - Alternative| Qdrant
-    API -->|Requests text embeddings and answers| LLM
+```
+Upload File  →  POST /data/upload/{project_id}
+                       │
+                       ▼
+Chunk File   →  POST /data/process/{project_id}
+                       │  (pure chunking, saves chunks to Postgres)
+                       ▼
+Index Chunks →  POST /nlp/index/push/{project_id}
+                       │  (embeds chunks + writes to Vector DB with valid FKs)
+                       ▼
+Ask Question →  POST /nlp/index/answer/{project_id}  (coming soon)
 ```
 
-**Request flow:**
-
-1. Client uploads a file to a project via the Data API.
-2. The Process endpoint splits the file into text chunks and stores them in PostgreSQL.
-3. The NLP Index endpoint embeds the chunks and pushes them into the vector database.
-4. The NLP Search endpoint retrieves the top-k relevant chunks and sends them to the LLM for answer generation.
+Key design choices:
+- **Factory Pattern** for both LLM providers and Vector DB providers — swap OpenAI ↔ Ollama or pgvector ↔ Qdrant without touching business logic.
+- **FastAPI `lifespan`** for clean startup/shutdown of DB and AI clients.
+- Chunking and embedding are kept as **separate steps** so chunk IDs always exist in Postgres before they're indexed into the vector store (avoids broken foreign keys).
 
 ---
 
 ## Tech Stack
 
-| Layer            | Technology                            |
-|------------------|---------------------------------------|
-| Web Framework    | FastAPI 0.115                         |
-| ASGI Server      | Uvicorn                               |
-| Database ORM     | SQLAlchemy 2.0 (async)                |
-| Database Driver  | asyncpg                               |
-| Relational DB    | PostgreSQL + pgvector extension       |
-| Migrations       | Alembic 1.13                          |
-| Vector Database  | pgvector / Qdrant                     |
-| LLM Providers    | OpenAI, Cohere, Google Gemini, Ollama |
-| Document Parsing | LangChain, PyPDF, PyMuPDF             |
-| Configuration    | Pydantic Settings                     |
+| Layer | Technology |
+|---|---|
+| API Framework | FastAPI |
+| Database | PostgreSQL (+ pgvector) |
+| Async Tasks | Celery *(in progress)* |
+| LLM Providers | OpenAI, Cohere, Google Gemini, Ollama (local) |
+| Vector DB | pgvector (Qdrant support planned) |
+| Containerization | Docker / docker-compose |
+
+---
+
+## Quick Start
+
+These steps work for **any beginner**, even if you've never run a FastAPI project before.
+
+### 1. Clone the repo
+
+```bash
+git clone https://github.com/mariiammaysara/Docsly.git
+cd Docsly
+```
+
+### 2. Create a virtual environment
+
+**Windows (PowerShell):**
+```powershell
+py -3.12 -m venv .venv
+.venv\Scripts\activate
+```
+
+**macOS / Linux:**
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+```
+
+### 3. Install dependencies
+
+```bash
+pip install -r src/requirements.txt
+```
+
+### 4. Set up environment files
+
+Copy the example env files and fill in your own keys (OpenAI API key, DB credentials, etc.):
+
+```bash
+cp src/.env.example src/.env
+cp docker/.env.example docker/.env
+```
+
+### 5. Start the database (Docker required)
+
+```bash
+cd docker
+docker-compose up -d
+cd ..
+```
+
+### 6. Run the server
+
+**Windows (PowerShell):**
+```powershell
+$env:PYTHONPATH="src"; uvicorn main:app --reload --host 0.0.0.0 --app-dir src
+```
+
+**macOS / Linux:**
+```bash
+PYTHONPATH=src uvicorn main:app --reload --host 0.0.0.0 --app-dir src
+```
+
+### 7. Open it in your browser
+
+- App: `http://localhost:8000`
+- Interactive API docs (Swagger): `http://localhost:8000/docs`
+- Health check: `http://localhost:8000/api/v1/health`
+
+---
+
+## Environment Variables
+
+Docsly uses two `.env` files:
+
+| File | Purpose |
+|---|---|
+| `src/.env` | App-level settings: API keys (OpenAI/Cohere/Gemini), `GENERATION_MODEL_ID`, `EMBEDDING_MODEL_ID`, `LOG_LEVEL`, DB connection string |
+| `docker/.env` | Docker/Postgres credentials used by `docker-compose.yml` |
+
+Never commit real `.env` files — only `.env.example` should be tracked in git. Double-check `.gitignore` covers both.
+
+---
+
+## Running the Database (Docker)
+
+```bash
+cd docker
+docker-compose up -d
+```
+
+This spins up PostgreSQL (with pgvector extension) for storing projects, files, chunks, and vector embeddings.
+
+---
+
+## API Endpoints
+
+| Method | URL | Description |
+|---|---|---|
+| GET | `/` | Welcome message |
+| GET | `/api/v1/health` | Health check |
+| POST | `/api/v1/data/upload/{project_id}` | Upload a file to a project |
+| POST | `/api/v1/data/process/{project_id}` | Chunk the uploaded file and save chunks to Postgres |
+| POST | `/api/v1/nlp/index/push/{project_id}` | Embed chunks and index them into the vector DB *(in progress)* |
+
+Full interactive docs available at `/docs` once the server is running.
+
+---
+
+## Postman Collection
+
+A ready-to-use [Postman](https://www.postman.com/) collection is included so you can test every endpoint without writing requests manually.
+
+1. Open Postman → **Import** → select `postman/Docsly.postman_collection.json`
+2. Set the collection variable `base_url` to your running server (default: `http://localhost:8000/api/v1`)
+3. Run **Upload** → **Process** → **Index** in order to test the full pipeline on a sample file
+
+> 📌 If you don't see the collection file yet, it's coming soon — export it from your local Postman workspace and add it to `postman/Docsly.postman_collection.json` in the repo.
+
+---
+
+## Roadmap
+
+- [x] File upload & project organization
+- [x] Document chunking
+- [x] LLM Factory (OpenAI, Cohere, Gemini, Ollama)
+- [ ] Vector DB Factory — pgvector migration (in progress)
+- [ ] Celery-based async processing for large files (in progress)
+- [ ] Question answering endpoint (RAG query)
+- [ ] Qdrant provider support
+- [ ] Deployment (Railway / Render / HF Spaces) — *in progress*
 
 ---
 
@@ -84,207 +211,42 @@ graph TD
 
 ```
 Docsly/
-└── src/
-    ├── main.py                   # App entry point, lifespan, route registration
-    ├── requirements.txt
-    ├── .env                      # Local environment variables (not committed)
-    ├── .env.example              # Template for environment variables
-    ├── wipe_db.py                # Utility to drop and recreate all tables
-    │
-    ├── helpers/
-    │   └── config.py             # Pydantic settings class
-    │
-    ├── models/
-    │   ├── db_schemas/
-    │   │   └── docsly/
-    │   │       ├── __init__.py
-    │   │       └── schema/
-    │   │           ├── docsly_base.py    # SQLAlchemy declarative base
-    │   │           ├── project.py        # PGProject table
-    │   │           ├── asset.py          # PGAsset table
-    │   │           └── chunk.py          # PGChunk table
-    │   ├── project_repository.py
-    │   ├── asset_repository.py
-    │   └── chunk_repository.py
-    │
-    ├── routes/
-    │   ├── base.py               # Health check
-    │   ├── data.py               # Upload and process endpoints
-    │   └── nlp.py                # Index and search endpoints
-    │
-    ├── controllers/              # Business logic layer
-    ├── stores/
-    │   ├── llm/                  # LLM factory and providers
-    │   └── vectordb/             # Vector DB factory and providers
-    └── tasks/                    # Background task workers
+├── docker/              # docker-compose + Docker env config
+├── src/
+│   ├── controllers/      # ProcessController, NLPController, etc.
+│   ├── routes/           # FastAPI route definitions
+│   ├── models/           # DB models (Postgres)
+│   ├── stores/
+│   │   ├── llm/           # LLM Factory (OpenAI, Cohere, Gemini, Ollama)
+│   │   └── vectordb/      # Vector DB Factory (pgvector, Qdrant)
+│   ├── helpers/          # Config, logging, utilities
+│   └── main.py           # FastAPI app entrypoint
+├── .gitignore
+├── ACKNOWLEDGEMENT.md
+├── LICENSE
+├── PROGRESS.md
+└── README.md
 ```
 
 ---
 
-## Getting Started
+## Contributing
 
-### Prerequisites
+This is primarily a learning/portfolio project, but issues, suggestions, and pull requests are welcome. If you'd like to contribute:
 
-- Python 3.12
-- PostgreSQL 15+ with the `pgvector` extension installed
-- A running Qdrant instance (optional, only if using Qdrant as the vector backend)
-
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/your-org/docsly.git
-cd docsly
-
-# Create and activate a virtual environment
-py -3.12 -m venv .venv
-.venv\Scripts\activate         # Windows
-# source .venv/bin/activate    # Linux / macOS
-
-# Install dependencies
-pip install -r src/requirements.txt
-```
-
-### Run the Server
-
-```bash
-$env:PYTHONPATH="."; uvicorn main:app --reload --host 0.0.0.0 --app-dir src
-```
-
-The API is available at `http://localhost:8000`.  
-Interactive documentation is available at `http://localhost:8000/docs`.
+1. Fork the repo
+2. Create a feature branch (`git checkout -b feature/your-feature`)
+3. Commit your changes
+4. Open a Pull Request
 
 ---
 
-## Configuration
+## License
 
-Copy the example file and fill in your values:
-
-```bash
-cp src/.env.example src/.env
-```
-
-Key variables in `src/.env`:
-
-```env
-# Application
-APP_NAME=Docsly
-LOG_LEVEL=INFO
-
-# LLM
-GENERATION_BACKEND=OPENAI        # OPENAI | COHERE | GEMINI | OLLAMA
-EMBEDDING_BACKEND=COHERE
-OPENAI_API_KEY=your_key_here
-COHERE_API_KEY=your_key_here
-
-# Vector Database
-VECTOR_DB_BACKEND=PGVECTOR       # PGVECTOR | QDRANT
-
-# PostgreSQL
-POSTGRES_USERNAME=docsly_user
-POSTGRES_PASSWORD=your_password
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-POSTGRES_MAIN_DATABASE=docsly
-```
+This project is licensed under the [Apache 2.0 License](./LICENSE).
 
 ---
 
-## Database Setup
+## Acknowledgements
 
-### Create the PostgreSQL database
-
-```sql
-CREATE USER docsly_user WITH PASSWORD 'your_password';
-CREATE DATABASE docsly OWNER docsly_user;
-```
-
-### Enable pgvector
-
-Connect to the `docsly` database and run:
-
-```sql
-CREATE EXTENSION IF NOT EXISTS vector;
-```
-
-The application creates all tables automatically on startup using `Base.metadata.create_all`.
-
-To reset the database (drop and recreate all tables):
-
-```bash
-$env:PYTHONPATH="."; python src/wipe_db.py
-```
-
-### Database Schema
-
-| Table      | Description                                        |
-|------------|----------------------------------------------------|
-| `projects` | Top-level container grouping documents and chunks  |
-| `assets`   | Individual uploaded files linked to a project      |
-| `chunks`   | Text segments extracted from assets, ready for RAG |
-
-Foreign key relationships:
-
-- `assets.asset_project_id` references `projects.id` (CASCADE DELETE)
-- `chunks.chunk_project_id` references `projects.id` (CASCADE DELETE)
-- `chunks.chunk_asset_id` references `assets.id` (SET NULL on DELETE)
-
----
-
-## API Reference
-
-### Base
-
-| Method | Endpoint         | Description          |
-|--------|------------------|----------------------|
-| GET    | `/`              | Welcome message      |
-| GET    | `/api/v1/health` | Service health check |
-
-### Data
-
-| Method | Endpoint                            | Description                           |
-|--------|-------------------------------------|---------------------------------------|
-| GET    | `/api/v1/data/info`                 | Data service info                     |
-| POST   | `/api/v1/data/upload/{project_id}`  | Upload a file to a project            |
-| POST   | `/api/v1/data/process/{project_id}` | Split uploaded files into text chunks |
-
-### NLP
-
-| Method | Endpoint                                | Description                               |
-|--------|-----------------------------------------|-------------------------------------------|
-| POST   | `/api/v1/nlp/index/push/{project_id}`   | Embed and index chunks into the vector DB |
-| POST   | `/api/v1/nlp/index/search/{project_id}` | Search for relevant chunks using a query  |
-
----
-
-## Development Notes
-
-### Swapping LLM Providers
-
-Set `GENERATION_BACKEND` or `EMBEDDING_BACKEND` in `.env` to any supported value:
-
-```
-OPENAI | COHERE | GEMINI | OLLAMA
-```
-
-The factory at `src/stores/llm/LLMProviderFactory` handles instantiation. No code changes are required.
-
-### Swapping Vector Databases
-
-Set `VECTOR_DB_BACKEND` to:
-
-```
-PGVECTOR | QDRANT
-```
-
-The factory at `src/stores/vectordb/VectorDBProviderFactory` handles instantiation.
-
-### Logging
-
-Log level is controlled by `LOG_LEVEL` in `.env`. Valid values: `DEBUG`, `INFO`, `WARNING`, `ERROR`.
-
-All log entries follow this format:
-
-```
-YYYY-MM-DD HH:MM:SS - module_name - LEVEL - message
-```
+See [ACKNOWLEDGEMENT.md](./ACKNOWLEDGEMENT.md). Built following the **mini-RAG** series to learn how to build real, production-style AI backend systems.
