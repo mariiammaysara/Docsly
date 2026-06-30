@@ -34,23 +34,118 @@ Built on a production-style architecture — Factory Pattern, FastAPI lifespan, 
 
 ## Architecture Overview
 
+### C4 — System Context
+
+```mermaid
+C4Context
+    title Docsly — System Context Diagram
+
+    Person(user, "API Consumer", "Developer or Application calling the REST API")
+
+    System(docsly, "Docsly Backend", "FastAPI RAG backend.\nHandles document ingestion, chunking, embedding, and semantic Q&A.")
+
+    System_Ext(openai, "OpenAI API", "GPT models for text generation")
+    System_Ext(cohere, "Cohere API", "Embedding models (multilingual)")
+    System_Ext(ollama, "Ollama (local)", "Local LLM inference")
+    System_Ext(gemini, "Google Gemini", "Gemini generation models")
+
+    SystemDb(postgres, "PostgreSQL + pgvector", "Stores projects, assets, chunks\nand vector embeddings")
+    SystemDb(qdrant, "Qdrant (optional)", "Alternative vector store")
+
+    Rel(user, docsly, "HTTP REST", "JSON / multipart form-data")
+    Rel(docsly, openai, "HTTPS", "Chat completions")
+    Rel(docsly, cohere, "HTTPS", "Embed text")
+    Rel(docsly, ollama, "HTTP", "Local inference")
+    Rel(docsly, gemini, "HTTPS", "Chat completions")
+    Rel(docsly, postgres, "asyncpg / SQLAlchemy", "Async SQL")
+    Rel(docsly, qdrant, "REST / gRPC", "Vector ops")
 ```
-Upload File  →  POST /data/upload/{project_id}
-                       │
-                       ▼
-Chunk File   →  POST /data/process/{project_id}
-                       │  (pure chunking, saves chunks to Postgres)
-                       ▼
-Index Chunks →  POST /nlp/index/push/{project_id}
-                       │  (embeds chunks + writes to Vector DB with valid FKs)
-                       ▼
-Ask Question →  POST /nlp/index/answer/{project_id}  (coming soon)
+
+---
+
+### RAG Pipeline — Detailed Flow
+
+```mermaid
+flowchart TD
+    subgraph Client["API Consumer"]
+        A([HTTP Request])
+    end
+
+    subgraph API["FastAPI Layer — Routes"]
+        B[POST /data/upload/:project_id]
+        C[POST /data/process/:project_id]
+        D[POST /nlp/index/push/:project_id]
+        E[POST /nlp/index/search/:project_id]
+    end
+
+    subgraph Controllers["Controllers"]
+        F[DataController\nupload_file / process_file]
+        G[NLPController\npush_index / search_index]
+    end
+
+    subgraph Storage["Repositories — PostgreSQL"]
+        H[(projects table)]
+        I[(assets table)]
+        J[(chunks table)]
+    end
+
+    subgraph LLM["LLM Factory"]
+        K{EmbeddingBackend}
+        K -->|COHERE| L[CoHereProvider\nembed-multilingual-v3]
+        K -->|OPENAI| M[OpenAIProvider\ntext-embedding-*]
+        K -->|OLLAMA| N[Ollama local]
+    end
+
+    subgraph GenLLM["Generation Factory"]
+        O{GenerationBackend}
+        O -->|OPENAI| P[OpenAI GPT]
+        O -->|GEMINI| Q[Google Gemini]
+        O -->|OLLAMA| R[Ollama local]
+    end
+
+    subgraph VectorDB["VectorDB Factory"]
+        S{VectorDB Backend}
+        S -->|PGVECTOR| T[(pgvector\nvectors in Postgres)]
+        S -->|QDRANT| U[(Qdrant cluster)]
+    end
+
+    A --> B --> F
+    F -->|"① Get-or-Create Project"| H
+    F -->|"② Save asset metadata"| I
+    F -->|"③ Store file on disk"| I
+
+    A --> C --> F
+    F -->|"④ Read file → LangChain splitter"| F
+    F -->|"⑤ Save chunks with FK→asset"| J
+
+    A --> D --> G
+    G -->|"⑥ Load chunks from Postgres"| J
+    G --> K
+    K -->|"⑦ Embed each chunk"| G
+    G -->|"⑧ Upsert vectors"| S
+
+    A --> E --> G
+    G -->|"⑨ Embed query"| K
+    G -->|"⑩ ANN search"| S
+    S -->|"⑪ Top-K chunks"| G
+    G --> O
+    O -->|"⑫ RAG prompt + answer"| G
+    G -->|"⑬ Return answer"| Client
+
+    style Client fill:#1a1a2e,color:#e0e0e0,stroke:#444
+    style API fill:#16213e,color:#e0e0e0,stroke:#444
+    style Controllers fill:#0f3460,color:#e0e0e0,stroke:#444
+    style Storage fill:#533483,color:#e0e0e0,stroke:#444
+    style LLM fill:#e94560,color:#fff,stroke:#444
+    style GenLLM fill:#c84b31,color:#fff,stroke:#444
+    style VectorDB fill:#2b2d42,color:#e0e0e0,stroke:#444
 ```
 
 Key design choices:
-- **Factory Pattern** for both LLM providers and Vector DB providers — swap OpenAI ↔ Ollama or pgvector ↔ Qdrant without touching business logic.
+- **Factory Pattern** for LLM providers and Vector DB — swap OpenAI ↔ Ollama or pgvector ↔ Qdrant without touching business logic.
 - **FastAPI `lifespan`** for clean startup/shutdown of DB and AI clients.
-- Chunking and embedding are kept as **separate steps** so chunk IDs always exist in Postgres before they're indexed into the vector store (avoids broken foreign keys).
+- Chunking and embedding are **separate steps** so chunk IDs always exist in Postgres before indexing into the vector store (avoids broken foreign keys).
+- **Async-first** — SQLAlchemy + asyncpg, no blocking calls in the request path.
 
 ---
 
