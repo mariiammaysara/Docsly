@@ -92,6 +92,7 @@ class CoHereProvider(BaseLLM):
     def embed_text(self, text: Union[str, List[str]], document_type: str = None) -> list[float]:
         """
         Convert text (or a list of texts) into numbers (vectors) using Cohere.
+        Supports batching internally to prevent API payload size issues.
         """
         # Safety check: ensure the client is ready
         if not self.client:
@@ -109,24 +110,28 @@ class CoHereProvider(BaseLLM):
 
         self.logger.info(f"Initiating CoHere embedding for {len(text)} document(s) using model: {self.embedding_model_id}")
 
+        all_embeddings = []
+        batch_size = 50
+        
         try:
-            # Call the Cohere API to get embeddings
-            response = self.client.embed(
-                model=self.embedding_model_id,
-                texts=[self.process_text(t) for t in text],
-                input_type=input_type,
-                embedding_types=['float'],
-            )
+            for i in range(0, len(text), batch_size):
+                batch_text = text[i:i+batch_size]
+                response = self.client.embed(
+                    model=self.embedding_model_id,
+                    texts=[self.process_text(t) for t in batch_text],
+                    input_type=input_type,
+                    embedding_types=['float'],
+                )
 
-            # Safety check: ensure we received valid data
-            if not response or not response.embeddings or not response.embeddings.float:
-                self.logger.error("Error while embedding text with CoHere")
-                return []
+                # Safety check: ensure we received valid data
+                if not response or not response.embeddings or not response.embeddings.float:
+                    self.logger.error(f"Error while embedding batch {i//batch_size} with CoHere")
+                    return []
+
+                all_embeddings.extend([f for f in response.embeddings.float])
             
-            self.logger.info("Successfully generated embeddings with CoHere")
-
-            # Return a list of vectors (Batching support)
-            return [f for f in response.embeddings.float]
+            self.logger.info(f"Successfully generated {len(all_embeddings)} embeddings with CoHere")
+            return all_embeddings
         except Exception as e:
             self.logger.error(f"CoHere Embedding Error: {str(e)}")
             return []

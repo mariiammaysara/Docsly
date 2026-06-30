@@ -110,6 +110,7 @@ class OpenAIProvider(BaseLLM):
     def embed_text(self, text: Union[str, List[str]], document_type: str = None) -> list[float]:
         """
         Convert text (or a list of texts) into numbers (vectors) using OpenAI.
+        Supports batching internally to prevent API payload size issues.
         """
         # Safety check: ensure the client and model are ready
         if not self.client:
@@ -126,22 +127,26 @@ class OpenAIProvider(BaseLLM):
 
         self.logger.info(f"Initiating OpenAI embedding for {len(text)} document(s) using model: {self.embedding_model_id}")
 
-        try:
-            # Call the OpenAI API to get embeddings
-            response = self.client.embeddings.create(
-                model=self.embedding_model_id,
-                input=[self.process_text(t) for t in text]
-            )
+        all_embeddings = []
+        batch_size = 50
 
-            # Safety check: ensure we received valid data
-            if not response or not response.data or len(response.data) == 0 or not response.data[0].embedding:
-                self.logger.error("Error while embedding text with OpenAI")
-                return []
+        try:
+            for i in range(0, len(text), batch_size):
+                batch_text = text[i:i+batch_size]
+                response = self.client.embeddings.create(
+                    model=self.embedding_model_id,
+                    input=[self.process_text(t) for t in batch_text]
+                )
+
+                # Safety check: ensure we received valid data
+                if not response or not response.data or len(response.data) == 0 or not response.data[0].embedding:
+                    self.logger.error(f"Error while embedding batch {i//batch_size} with OpenAI")
+                    return []
+                
+                all_embeddings.extend([rec.embedding for rec in response.data])
             
-            self.logger.info("Successfully generated embeddings with OpenAI")
-            
-            # Return a list of vectors (Batching support)
-            return [rec.embedding for rec in response.data]
+            self.logger.info(f"Successfully generated {len(all_embeddings)} embeddings with OpenAI")
+            return all_embeddings
         except Exception as e:
             self.logger.error(f"OpenAI Embedding Error: {str(e)}")
             return []

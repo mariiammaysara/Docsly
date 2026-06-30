@@ -27,11 +27,9 @@ class ProcessController(BaseController):
     and breaking them into smaller parts (chunks) so the AI can read them.
     """
 
-    def __init__(self, project_id: str, embedding_client = None, vectordb_client = None):
+    def __init__(self, project_id: str):
         super().__init__()
         self.project_id = project_id
-        self.embedding_client = embedding_client
-        self.vectordb_client = vectordb_client
         # Get the folder where this project's files are stored
         self.project_path = project_controller.get_project_path(project_id=project_id)
 
@@ -84,35 +82,54 @@ class ProcessController(BaseController):
         Break the long text into smaller pieces (chunks).
         This is important because AI cannot read a huge book all at once.
         """
+        from src.helpers.config import get_settings
+        settings = get_settings()
 
-        # Setup the tool that cuts the text
-        splitter = RecursiveCharacterTextSplitter(
-            chunk_size=chunk_size,
-            chunk_overlap=overlap_size, # Keep some shared text between chunks so we don't lose context
-            length_function=len,
-            is_separator_regex=False,
-            separators=["\n\n", "\n", " ", ""] # Try splitting by paragraphs first, then sentences, then words
-        )
+        # Choose splitting tool based on config
+        if getattr(settings, 'TEXT_SPLITTER_BACKEND', 'RECURSIVE').upper() == 'NLTK':
+            import nltk
+            # Safely download required tokenizer packages if missing
+            try:
+                nltk.data.find('tokenizers/punkt')
+            except LookupError:
+                nltk.download('punkt', quiet=True)
+            try:
+                nltk.data.find('tokenizers/punkt_tab')
+            except LookupError:
+                nltk.download('punkt_tab', quiet=True)
+
+            from langchain_text_splitters import NLTKTextSplitter
+            splitter = NLTKTextSplitter(
+                chunk_size=chunk_size,
+                chunk_overlap=overlap_size
+            )
+        else:
+            # Setup the tool that cuts the text recursively
+            splitter = RecursiveCharacterTextSplitter(
+                chunk_size=chunk_size,
+                chunk_overlap=overlap_size, # Keep some shared text between chunks so we don't lose context
+                length_function=len,
+                is_separator_regex=False,
+                separators=["\n\n", "\n", " ", ""] # Try splitting by paragraphs first, then sentences, then words
+            )
         
         # Cut the text and return the chunks
         return splitter.split_documents(file_content)
 
     async def process_file(self, file_id: str, chunk_size: int = 800, overlap_size: int = 150, do_reset: int = 0):
         """
-        The main function that does everything:
-        1. Reads the file.
-        2. Breaks it into chunks.
-        3. Generates embeddings and stores them in VectorDB.
-        4. Returns the result.
+        Reads a file and splits it into text chunks.
+        Responsible ONLY for file I/O and text splitting.
+        VectorDB embedding and indexing is handled separately by NLPController.
         """
         logger.info(f"Starting to process file: {file_id} in project: {self.project_id}")
         
-        # Step 1: Read the text
+        # Step 1: Read the text from disk
         file_content = self.get_file_content(file_id=file_id)
         if file_content is None:
             return False, "Failed to load the file.", None
             
-        # Step 2: Cut the text into chunks
+        # Step 2: Split the text into chunks
         chunks = self.process_file_content(
             file_content=file_content,
             file_id=file_id,
@@ -120,38 +137,5 @@ class ProcessController(BaseController):
             overlap_size=overlap_size
         )
         
-        # Step 3: Vectorization (If clients are provided)
-        if self.embedding_client and self.vectordb_client:
-            logger.info(f"Vectorizing {len(chunks)} chunks for project: {self.project_id}...")
-            
-            # Prepare data for VectorDB
-            texts = [c.page_content for c in chunks]
-            
-            # Generate embeddings for all chunks at once (More efficient)
-            vectors = self.embedding_client.embed_text(texts)
-            
-            # Ensure collection exists in VectorDB
-            if vectors and len(vectors) > 0:
-                embedding_size = len(vectors[0]) 
-                
-                # Standardized collection name (consistent with NLPController)
-                collection_name = f"collection_{embedding_size}_{self.project_id}".strip()
-                
-                await self.vectordb_client.create_collection(
-                    collection_name=collection_name,
-                    embedding_size=embedding_size,
-                    do_reset=bool(do_reset)
-                )
-                
-                # Insert many
-                await self.vectordb_client.insert_many(
-                    collection_name=collection_name,
-                    texts=texts,
-                    vectors=vectors,
-                    metadata=[c.metadata for c in chunks]
-                )
-                logger.info(f"Successfully stored {len(chunks)} vectors in VectorDB collection: {collection_name}")
-
-        # Step 4: Finish and return the chunks
-        logger.info(f"Success: File '{file_id}' was cut into {len(chunks)} chunks.")
-        return True, f"File successfully processed and vectorized into {len(chunks)} chunks.", chunks
+        logger.info(f"Success: File '{file_id}' was split into {len(chunks)} chunks.")
+        return True, f"File successfully processed into {len(chunks)} chunks.", chunks

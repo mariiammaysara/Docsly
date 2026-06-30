@@ -1,10 +1,11 @@
-from fastapi import APIRouter, status, Request
+from fastapi import APIRouter, status, Request, Depends
 from fastapi.responses import JSONResponse
 from src.routes.schemas.nlp import PushRequest, SearchRequest
 from src.models import ProjectRepository, ChunkRepository
 from src.controllers.nlp_controller import NLPController
 from src.models.enums.response import ResponseSignal
 from src.tasks.data_indexing import index_data_content
+from src.helpers.dependencies import get_vector_db, get_generation_client, get_embedding_client, get_template_parser
 import logging
 
 logger = logging.getLogger('uvicorn.error')
@@ -15,7 +16,15 @@ nlp_router = APIRouter(
 )
 
 @nlp_router.post("/index/push/{project_id}")
-async def index_project(request: Request, project_id: str, push_request: PushRequest):
+async def index_project(
+    request: Request,
+    project_id: str,
+    push_request: PushRequest,
+    vectordb_client=Depends(get_vector_db),
+    generation_client=Depends(get_generation_client),
+    embedding_client=Depends(get_embedding_client),
+    template_parser=Depends(get_template_parser),
+):
     """
     Triggers the indexing process. 
     Synchronous version for testing to ensure collection is created.
@@ -26,10 +35,10 @@ async def index_project(request: Request, project_id: str, push_request: PushReq
     project = await project_repo.get_project_or_create_one(project_id=project_id)
 
     nlp_controller = NLPController(
-        vectordb_client=request.app.vectordb_client,
-        generation_client=request.app.generation_client,
-        embedding_client=request.app.embedding_client,
-        template_parser=request.app.template_parser,
+        vectordb_client=vectordb_client,
+        generation_client=generation_client,
+        embedding_client=embedding_client,
+        template_parser=template_parser,
     )
 
     # For testing: run indexing immediately
@@ -53,7 +62,14 @@ async def index_project(request: Request, project_id: str, push_request: PushReq
     )
 
 @nlp_router.get("/index/info/{project_id}")
-async def get_project_index_info(request: Request, project_id: str):
+async def get_project_index_info(
+    request: Request,
+    project_id: str,
+    vectordb_client=Depends(get_vector_db),
+    generation_client=Depends(get_generation_client),
+    embedding_client=Depends(get_embedding_client),
+    template_parser=Depends(get_template_parser),
+):
     """
     Retrieves information about the project's vector collection.
     """
@@ -66,10 +82,10 @@ async def get_project_index_info(request: Request, project_id: str):
     )
 
     nlp_controller = NLPController(
-        vectordb_client=request.app.vectordb_client,
-        generation_client=request.app.generation_client,
-        embedding_client=request.app.embedding_client,
-        template_parser=request.app.template_parser,
+        vectordb_client=vectordb_client,
+        generation_client=generation_client,
+        embedding_client=embedding_client,
+        template_parser=template_parser,
     )
 
     collection_info = await nlp_controller.get_vector_db_collection_info(project=project)
@@ -82,7 +98,15 @@ async def get_project_index_info(request: Request, project_id: str):
     )
 
 @nlp_router.post("/index/search/{project_id}")
-async def search_index(request: Request, project_id: str, search_request: SearchRequest):
+async def search_index(
+    request: Request,
+    project_id: str,
+    search_request: SearchRequest,
+    vectordb_client=Depends(get_vector_db),
+    generation_client=Depends(get_generation_client),
+    embedding_client=Depends(get_embedding_client),
+    template_parser=Depends(get_template_parser),
+):
     """
     Performs semantic search within the project's vectors.
     """
@@ -95,10 +119,10 @@ async def search_index(request: Request, project_id: str, search_request: Search
     )
 
     nlp_controller = NLPController(
-        vectordb_client=request.app.vectordb_client,
-        generation_client=request.app.generation_client,
-        embedding_client=request.app.embedding_client,
-        template_parser=request.app.template_parser,
+        vectordb_client=vectordb_client,
+        generation_client=generation_client,
+        embedding_client=embedding_client,
+        template_parser=template_parser,
     )
 
     results = await nlp_controller.search_vector_db_collection(
@@ -121,7 +145,15 @@ async def search_index(request: Request, project_id: str, search_request: Search
     )
 
 @nlp_router.post("/index/answer/{project_id}")
-async def answer_rag(request: Request, project_id: str, search_request: SearchRequest):
+async def answer_rag(
+    request: Request,
+    project_id: str,
+    search_request: SearchRequest,
+    vectordb_client=Depends(get_vector_db),
+    generation_client=Depends(get_generation_client),
+    embedding_client=Depends(get_embedding_client),
+    template_parser=Depends(get_template_parser),
+):
     """
     Full RAG implementation: Retrieves context and generates an answer using LLM.
     """
@@ -134,10 +166,10 @@ async def answer_rag(request: Request, project_id: str, search_request: SearchRe
     )
 
     nlp_controller = NLPController(
-        vectordb_client=request.app.vectordb_client,
-        generation_client=request.app.generation_client,
-        embedding_client=request.app.embedding_client,
-        template_parser=request.app.template_parser,
+        vectordb_client=vectordb_client,
+        generation_client=generation_client,
+        embedding_client=embedding_client,
+        template_parser=template_parser,
     )
 
     answer, full_prompt, chat_history = await nlp_controller.answer_rag_question(

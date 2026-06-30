@@ -1,9 +1,9 @@
 from .base_controller import BaseController
 from src.models.db_schemas import PGProject, PGChunk
 from src.stores.llm.LLM_Enums import DocumentTypeEnum
-from src.models.db_schemas.retrieval import RetrievedDocument
-from typing import List, Tuple, Dict, Any
+from typing import List, Optional, Dict, Any
 import json
+import logging
 
 class NLPController(BaseController):
     """
@@ -42,36 +42,62 @@ class NLPController(BaseController):
                                    chunks_ids: List[str], 
                                    do_reset: bool = False):
         """
-        Embeds a list of chunks and inserts them into the vector database.
+        Embeds a list of chunks and inserts them into the vector database in batches with a progress bar.
         """
         # step1: get collection name
         collection_name = self.create_collection_name(project_id=project.project_id)
-
-        # step2: generate embeddings
-        texts = [c.chunk_text for c in chunks]
-        metadata = [c.chunk_metadata for c in chunks]
-        vectors = self.embedding_client.embed_text(
-            text=texts, 
-            document_type=DocumentTypeEnum.DOCUMENT.value
-        )
-
-        # step3: create collection if not exists
-        embedding_size = len(vectors[0]) if vectors else 0
         
-        await self.vectordb_client.create_collection(
-            collection_name=collection_name,
-            embedding_size=embedding_size,
-            do_reset=do_reset,
-        )
+        total_chunks = len(chunks)
+        batch_size = 50
+        collection_created = False
+        logger = logging.getLogger("uvicorn.error")
 
-        # step4: insert into vector db
-        await self.vectordb_client.insert_many(
-            collection_name=collection_name,
-            texts=texts,
-            metadata=metadata,
-            vectors=vectors,
-            record_ids=chunks_ids,
-        )
+        logger.info(f"START INDEXING: {total_chunks} chunks to index for project {project.project_id}")
+
+        for i in range(0, total_chunks, batch_size):
+            batch_chunks = chunks[i:i+batch_size]
+            batch_ids = chunks_ids[i:i+batch_size]
+            
+            batch_texts = [c.chunk_text for c in batch_chunks]
+            batch_metadata = [c.chunk_metadata for c in batch_chunks]
+            
+            # Step 2: Generate embeddings for this batch
+            batch_vectors = self.embedding_client.embed_text(
+                text=batch_texts, 
+                document_type=DocumentTypeEnum.DOCUMENT.value
+            )
+            
+            if not batch_vectors:
+                logger.error(f"Failed to generate embeddings for batch starting at index {i}")
+                continue
+                
+            # Step 3: Create collection on the first batch
+            if not collection_created:
+                embedding_size = len(batch_vectors[0]) if batch_vectors else 0
+                await self.vectordb_client.create_collection(
+                    collection_name=collection_name,
+                    embedding_size=embedding_size,
+                    do_reset=do_reset,
+                )
+                collection_created = True
+                
+            # Step 4: Insert this batch into vector db
+            await self.vectordb_client.insert_many(
+                collection_name=collection_name,
+                texts=batch_texts,
+                metadata=batch_metadata,
+                vectors=batch_vectors,
+                record_ids=batch_ids,
+            )
+            
+            # Step 5: Log Progress Bar
+            progress = min(i + batch_size, total_chunks)
+            percent = (progress / total_chunks) * 100
+            bar_length = 20
+            filled_length = int(round(bar_length * progress / float(total_chunks)))
+            bar = '█' * filled_length + '-' * (bar_length - filled_length)
+            
+            logger.info(f"Indexing Progress: |{bar}| {progress}/{total_chunks} Chunks ({percent:.1f}%) complete")
 
         return True
 

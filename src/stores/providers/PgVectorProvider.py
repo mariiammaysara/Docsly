@@ -1,6 +1,6 @@
 from typing import List, Optional, Dict, Any
 from src.stores.vectordb.VectorDB_Interface import BaseVectorDB
-from src.stores.vectordb.VectorDB_Enums import DistanceMethodEnums
+from src.stores.vectordb.VectorDB_Enums import DistanceMethodEnums, PgVectorDistanceMethodEnums
 from src.models.db_schemas.chunk import RetrievedChunk
 from sqlalchemy import text
 import uuid
@@ -81,7 +81,7 @@ class PgVectorProvider(BaseVectorDB):
                                  embedding_size: int,
                                  do_reset: bool = False,
                                  distance_method: str = "cosine"):
-        """Create a new collection table with vector dimensions."""
+        """Create a new collection table with vector dimensions and foreign key to chunks."""
         safe_name = "".join([c for c in collection_name if c.isalnum() or c == "_"])
         if do_reset:
             await self.delete_collection(safe_name)
@@ -93,51 +93,77 @@ class PgVectorProvider(BaseVectorDB):
                         id VARCHAR(36) PRIMARY KEY,
                         text TEXT NOT NULL,
                         embedding VECTOR({embedding_size}),
-                        metadata JSONB
+                        metadata JSONB,
+                        chunk_id INTEGER UNIQUE REFERENCES chunks(id) ON DELETE CASCADE
                     );
                 """))
                 
-                # Check if distance method index should be created to optimize search
-                index_name = f"idx_{safe_name}_embedding"
-                op_class = "vector_cosine_ops"
-                if distance_method == DistanceMethodEnums.EUCLIDEAN.value:
-                    op_class = "vector_l2_ops"
-                elif distance_method == DistanceMethodEnums.DOT.value:
-                    op_class = "vector_ip_ops"
+        # Resolve distance method: prefer config value, parameter is the default sentinel
+        dist_method = getattr(self.config, 'VECTOR_DB_DISTANCE_METHOD', distance_method)
+        await self.create_vector_index(safe_name, dist_method)
 
+    async def create_vector_index(self, collection_name: str, distance_method: str = "cosine"):
+        """Create HNSW vector index conditionally based on record threshold."""
+        safe_name = "".join([c for c in collection_name if c.isalnum() or c == "_"])
+        threshold = getattr(self.config, 'VECTOR_DB_PGVEC_INDEX_THRESHOLD', 100)
+        
+        async with self.db_client() as session:
+            stmt = text(f"SELECT COUNT(*) FROM {safe_name};")
+            result = await session.execute(stmt)
+            count = result.scalar() or 0
+            
+        if count < threshold:
+            logger.info(f"Skipping index creation for {safe_name}: count {count} is below threshold {threshold}")
+            return
+
+        index_name = f"idx_{safe_name}_embedding"
+        op_class = PgVectorDistanceMethodEnums.COSINE.value
+        if distance_method == DistanceMethodEnums.DOT.value:
+            op_class = PgVectorDistanceMethodEnums.DOT.value
+
+        logger.info(f"Creating vector HNSW index for {safe_name} (count: {count})")
+        async with self.db_client() as session:
+            async with session.begin():
                 await session.execute(text(f"""
                     CREATE INDEX IF NOT EXISTS {index_name} 
-                    ON {safe_name} USING hnsw (embedding {op_class});
+                    ON {safe_name} USING hnsw (embedding {op_class})
+                    WITH (m = 16, ef_construction = 64);
                 """))
 
     async def insert_one(self, collection_name: str, text: str, vector: list,
-                         metadata: dict = None, 
-                         record_id: str = None):
-        """Insert a single record into the collection."""
+                          metadata: dict = None, 
+                          record_id: str = None):
+        """Insert a single record into the collection and trigger index creation if threshold met."""
         safe_name = "".join([c for c in collection_name if c.isalnum() or c == "_"])
-        rec_id = record_id or str(uuid.uuid4())
+        rec_id = str(uuid.uuid4())
+        ch_id = int(record_id) if record_id and record_id.isdigit() else None
         meta_json = json.dumps(metadata or {})
         vector_str = "[" + ",".join(map(str, vector)) + "]"
 
         async with self.db_client() as session:
             async with session.begin():
                 stmt = text(f"""
-                    INSERT INTO {safe_name} (id, text, embedding, metadata)
-                    VALUES (:id, :text, CAST(:embedding AS vector), :metadata)
-                    ON CONFLICT (id) DO UPDATE 
+                    INSERT INTO {safe_name} (id, text, embedding, metadata, chunk_id)
+                    VALUES (:id, :text, CAST(:embedding AS vector), :metadata, :chunk_id)
+                    ON CONFLICT (chunk_id) DO UPDATE 
                     SET text = EXCLUDED.text, embedding = EXCLUDED.embedding, metadata = EXCLUDED.metadata;
                 """)
                 await session.execute(stmt, {
                     "id": rec_id,
                     "text": text,
                     "embedding": vector_str,
-                    "metadata": meta_json
+                    "metadata": meta_json,
+                    "chunk_id": ch_id
                 })
+        
+        # Check and create index if threshold reached
+        distance_method = getattr(self.config, 'VECTOR_DB_DISTANCE_METHOD', 'cosine').lower()
+        await self.create_vector_index(collection_name, distance_method)
 
     async def insert_many(self, collection_name: str, texts: list, 
                            vectors: list, metadata: list = None, 
                            record_ids: list = None, batch_size: int = 50):
-        """Insert multiple records using batching."""
+        """Insert multiple records using batching and trigger index creation if threshold met."""
         safe_name = "".join([c for c in collection_name if c.isalnum() or c == "_"])
         async with self.db_client() as session:
             async with session.begin():
@@ -148,22 +174,28 @@ class PgVectorProvider(BaseVectorDB):
                     batch_ids = record_ids[i:i+batch_size] if record_ids else [None]*len(batch_texts)
                     
                     for txt, vec, meta, rec_id in zip(batch_texts, batch_vectors, batch_meta, batch_ids):
-                        r_id = rec_id or str(uuid.uuid4())
+                        row_id = str(uuid.uuid4())
+                        ch_id = int(rec_id) if rec_id and str(rec_id).isdigit() else None
                         meta_json = json.dumps(meta or {})
                         vector_str = "[" + ",".join(map(str, vec)) + "]"
                         
                         stmt = text(f"""
-                            INSERT INTO {safe_name} (id, text, embedding, metadata)
-                            VALUES (:id, :text, CAST(:embedding AS vector), :metadata)
-                            ON CONFLICT (id) DO UPDATE 
+                            INSERT INTO {safe_name} (id, text, embedding, metadata, chunk_id)
+                            VALUES (:id, :text, CAST(:embedding AS vector), :metadata, :chunk_id)
+                            ON CONFLICT (chunk_id) DO UPDATE 
                             SET text = EXCLUDED.text, embedding = EXCLUDED.embedding, metadata = EXCLUDED.metadata;
                         """)
                         await session.execute(stmt, {
-                            "id": r_id,
+                            "id": row_id,
                             "text": txt,
                             "embedding": vector_str,
-                            "metadata": meta_json
+                            "metadata": meta_json,
+                            "chunk_id": ch_id
                         })
+
+        # Check and create index if threshold reached
+        distance_method = getattr(self.config, 'VECTOR_DB_DISTANCE_METHOD', 'cosine').lower()
+        await self.create_vector_index(collection_name, distance_method)
 
     async def search_by_vector(self, collection_name: str, vector: list, limit: int) -> Optional[List[RetrievedChunk]]:
         """Search for the most similar vectors and return standardized results."""

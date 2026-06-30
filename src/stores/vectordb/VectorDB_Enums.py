@@ -9,7 +9,6 @@ class DistanceMethodEnums(Enum):
     """Standard Distance Methods for Vector Search."""
     COSINE = "cosine"
     DOT = "dot"
-    EUCLIDEAN = "euclidean"
 
 class PgVectorTableSchemeEnums(Enum):
     """Naming convention for PGVector tables/columns."""

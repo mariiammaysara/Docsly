@@ -10,7 +10,6 @@ from src.models import ProjectRepository, AssetModel, ChunkRepository
 from src.models.db_schemas import Asset, Chunk
 from src.models.enums import ResponseSignal
 from src.routes.schemas import ProcessRequest
-import shutil
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +114,11 @@ async def upload_data(request: Request, project_id: str, file: UploadFile,
         )
 
 @data_router.post("/process/{project_id}")
-async def process_data(request: Request, project_id: str, request_data: ProcessRequest):
+async def process_data(
+    request: Request,
+    project_id: str,
+    request_data: ProcessRequest,
+):
     """Process uploaded data using file_id or all project assets."""
     
     # 0. Handle Reset Logic (Project-wide)
@@ -125,11 +128,7 @@ async def process_data(request: Request, project_id: str, request_data: ProcessR
         logger.info(f"Reset triggered for project {project_id}: Deleted {deleted_count} old chunks.")
     
     # Instantiate the process controller for the specific project
-    process_controller = ProcessController(
-        project_id, 
-        request.app.embedding_client, 
-        request.app.vectordb_client
-    )
+    process_controller = ProcessController(project_id)
     all_chunks = []
     processed_files = []
     
