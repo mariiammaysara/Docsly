@@ -76,7 +76,7 @@ Swap providers by changing a single env variable — no code changes required.
 
 ## Architecture Overview
 
-### C4 — System Context
+### System Context
 
 ```mermaid
 C4Context
